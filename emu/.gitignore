@@ -1,0 +1,6 @@
+build/*s
+s*.exe
+*.VC.db
+*.VC.VC.opendb
+*.vcxproj.user
+temp/*
