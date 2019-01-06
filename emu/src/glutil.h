@@ -5,19 +5,47 @@
 typedef unsigned  char byte ;
 typedef unsigned  int uint ;
 
+
+
+//drawable rentangle
+typedef struct 
+{
+    int handle;        //texture object handle 
+    byte * data;        //weak, nonowning ref
+    int width, height;
+    int comp;
+
+} texture ;
+
+typedef struct 
+{
+    int vao, vbo; //handles : vertex array obj, vertex buffer object
+    float * data; //weak no owning data ptr
+    int size, num_verts;
+
+} mesh ;
+
 void gl_init(int width, int height);
 void gl_destroy();
 void gl_clear();
 int gl_update();
-void  gl_render();
 
 //todo specifiy render targetsvoid gl_render();
 
-int gl_test();
+void gl_load_mesh(mesh * obj, float * data, float size, float comp);
 
+void gl_render(mesh * obj);
+void gl_mesh_destroy(mesh * obj);
 
 //TODO Remove and change from load_map, load_sprite, load_palette
-void gl_load_texture(int * texture, byte * data, int x, int y, int w, int h,int comp);
+void gl_bind_texture(texture * obj);
 
-void gl_update_texture(int texture, byte * data, int x, int y, int w, int h,int comp);
+void gl_load_texture(texture * obj, byte * data,  int width, int height,int comp);
+
+//x,y,w,h, is sub rect
+void gl_update_texture(texture * obj, int x, int y, int width, int height);
+
+
+void gl_set_uniform(const char * name, float value);
+
 #endif

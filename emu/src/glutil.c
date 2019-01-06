@@ -6,20 +6,11 @@ SDL_Window*     _sdl_window;
 SDL_Event*      _sdl_event;
 SDL_GLContext   _sdl_gl_context;
 
-int _texture, _vert_shader, _frag_shader, _program;
-int _vao, _vbo;
+int _vert_shader, _frag_shader, _program;
 
 #define error(msg, ...) {printf(msg,__VA_ARGS__);exit(-1);}
 
-static float verts[12] = {
-    0, 0,
-    0, 1,
-    1, 1,
 
-    0, 0,
-    1, 0,
-    1, 1,
-};
 //map all indices from 1d to 2d using size of palette, sheet or map
 // x = i/w
 // y = i%w
@@ -29,9 +20,10 @@ static const char * _vertex_source =
     //"uniform vec2 size;"
     "in vec2 pos;"
     "out vec2 uv;"
+   // "uniform float scale;"
     "void main(){"
         "uv=pos;"
-        "gl_Position  =vec4(pos*2-1,1,1);\n"
+        "gl_Position  =vec4(uv,1,1);\n"
 
     "}";
 
@@ -98,43 +90,14 @@ void load_shader()
 
 void destroy_shader()
 {
+    glDeleteShader(_vert_shader); // removes
     glDeleteShader(_frag_shader); // removes
     glDeleteProgram(_program);
 
 }
 
-void create_vertex_array()
-{
-    glUseProgram(_program); //Attaching shaders
-    glGenVertexArrays(1, &_vao);
-    glBindVertexArray(_vao);
-
-    glGenBuffers(1, &_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), 0);
-    glEnableVertexAttribArray(0);//enabel to draw
-  
-}
 
 
-
-void destroy_vertex_array()
-{
-    glDeleteVertexArrays(1, &_vao);
-    glDeleteBuffers(1, &_vbo);
-
-}
-
-//bind to use
-void draw_vertex_array() 
-{
-    //bind the VAO and its element buffer
-    //glActiveTexture(GL_TEXTURE0); 
-    glBindVertexArray(_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glDrawArrays(GL_TRIANGLES, 0,  6);
-}
 
 
 /////////////////////////////////////// Begin API ///////////////////////////////////////////////////
@@ -165,14 +128,12 @@ void gl_init(int width, int height)
     }  
 
     load_shader(); 
-    create_vertex_array(); 
 }
 
 
 void gl_destroy()
 {
     destroy_shader(); 
-    destroy_vertex_array();
 
     SDL_DestroyWindow(_sdl_window);
     SDL_GL_DeleteContext(_sdl_gl_context);
@@ -199,70 +160,91 @@ int gl_update()
     gl_clear();
     glUseProgram(_program); //Attaching shaders
 }
-void gl_render()
+
+
+
+
+void gl_load_mesh(mesh * obj, float * data, float size, float comp)
 {
-    draw_vertex_array();
+    obj->data = data;
+    obj->size = size;
+    obj->num_verts = obj->size/comp;
+
+    glUseProgram(_program); //Attaching shaders
+    glGenVertexArrays(1, &obj->vao);
+    glBindVertexArray(obj->vao);
+
+    glGenBuffers(1, &obj->vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, obj->vbo);
+
+    glBufferData(GL_ARRAY_BUFFER, obj->size, obj->data, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, comp, GL_FLOAT, GL_FALSE, comp*sizeof(float), 0);
+    glEnableVertexAttribArray(0);//enabel to draw 
 }
+
+void gl_mesh_destroy(mesh * obj)
+{
+    glUseProgram(_program); //Attaching shaders
+    glDeleteVertexArrays(1, &obj->vao);
+    glDeleteBuffers(1, &obj->vbo);
+
+}
+void gl_render(mesh * obj)
+{
+    glBindVertexArray(obj->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, obj->vbo);
+    glDrawArrays(GL_TRIANGLES, 0,  obj->num_verts);
+}
+
+
+void gl_bind_texture(texture * obj)
+{
+    glBindTexture(GL_TEXTURE_2D, obj->handle);
+}
+
 #define gl_format(comp) (comp == 3 ? GL_RGB : (comp == 1 ? GL_RED : -1)); 
-void gl_load_texture(int * texture, byte * data, int x, int y, int w, int h, int comp) 
+
+
+void gl_load_texture(texture * obj, byte * data, int width, int height, int comp) 
 { 
-    int format= gl_format(comp);
+    obj->width = width;
+    obj->height = height;
+    obj->data = data;
+    obj->comp = comp;
+
+    int format= gl_format(obj->comp);
     if(format == -1) 
             error("Update Texture : invalid component value (%d)",comp);
-       glGenTextures(1, texture);
-    glBindTexture(GL_TEXTURE_2D, *texture);
+    glUseProgram(_program); //Attaching shaders
+    glGenTextures(1, &obj->handle);
+    glBindTexture(GL_TEXTURE_2D, obj->handle);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,   GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,   GL_NEAREST);
     //glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, format, GL_UNSIGNED_BYTE, data);
-    
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, format, GL_UNSIGNED_BYTE, obj->data);
 }
 
-void gl_update_texture(int texture, byte * data, int x, int y, int w, int h,int comp)
+void gl_update_texture(texture * obj, int x, int y, int width, int height)
 {
-    int format= gl_format(comp);
+    int format= gl_format(obj->comp);
     if(format == -1) 
-            error("Update Texture : invalid component value (%d)",comp);
-    glBindTexture(GL_TEXTURE_2D, texture);
+            error("Update Texture : invalid component value (%d)",obj->comp);
+    glBindTexture(GL_TEXTURE_2D, obj->handle);
     //glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+//    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, obj->width, obj->height, 0, format, GL_UNSIGNED_BYTE, obj->data);
+
     glTexSubImage2D(GL_TEXTURE_2D, 0,
-                    x,y,w,h,
+                    x,y,width,height,
                     format,
                     GL_UNSIGNED_BYTE, 
-                    data);
+                    obj->data);
+
 }
 
-
-
-
-int gl_test()
+void gl_set_uniform(const char * name, float value)
 {
-    int width = 256, height = 256;
-    gl_init(width, height);
-
-    int comp = 1;
-    int len = width * height*comp;
-    byte * data = (byte*)malloc(len);
-    //memset(&texture[0], 120, len);
-    int texture;
-    int i,j,x;
-    for(j=0; j < height; j++)
-        for(i=0; i < width; i++)
-        {
-            x = comp*(j*height+i);
-            data[x++] =  i;
-            //data[x++] =  j;
-            //data[x] =  0;
-        }
-    gl_load_texture(&texture, &data[0], 0,0,width,height, comp); 
-    
-    while(gl_update())
-    {
-        gl_update_texture(texture, &data[0],0,0, width,height, comp); 
-        gl_render();
-    }   
-    gl_destroy(); 
-    return 0;
+    int location = glGetUniformLocation(_program, name);
+    if(location == -1) 
+            error("Could not set uniform (%s)",name);
+    glUniform1f(location, value); 
 }
-
