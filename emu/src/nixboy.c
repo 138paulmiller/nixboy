@@ -1,20 +1,9 @@
 #include "glutil.h"
 
-const char * uniform_scale="scale";
+static const char * uniform_scale="scale";
+static const char * title="nixboy";
 
 //Tile based renderer
-
-typedef struct color
-{
-    union
-    {
-        struct
-        {
-            byte r,g,b;
-        };
-        byte * data;
-    };
-}color;
 
 typedef struct Memory
 {
@@ -27,10 +16,9 @@ typedef struct Memory
 int begin()
 {
     Memory memory;
-    //TODO
-    int scale = 1;
-    int width = scale*256, height = scale*256;
-    gl_init(width, height);
+
+    int width = 256, height = 256;
+    gl_init(title, width, height);
     
     mesh palette_mesh;
     float palette_verts[12] = {
@@ -42,34 +30,53 @@ int begin()
         1, 0,
         1, 1,
     };
-    gl_load_mesh(&palette_mesh, palette_verts,  sizeof(palette_verts)*sizeof(float), 2);
+    gl_load_mesh(   &palette_mesh, 
+                    palette_verts,  
+                    sizeof(palette_verts), 
+                    2);
     
-    int palette_width = 128, palette_height = 128, palette_comp = 3;
-    memory.palette = (byte*)malloc(palette_width * palette_height * palette_comp);
-    
-    int i,j,x; 
+    //each palette color is a R8G8B8A8
+    int palette_width   = 16, 
+        palette_height  = 16, 
+        palette_comp    = 3;
+    int palette_size = palette_width * palette_height * palette_comp;
+    memory.palette = (byte*)malloc(palette_size );
+    byte * c;
+    int i,j,x;
     for(j=0; j < palette_height; j++)
         for(i=0; i < palette_width; i++)
         {
-            x = palette_comp*(j*palette_height+i);
-            memory.palette[x++] =  i;
-            memory.palette[x++] =  0;
-            memory.palette[x  ] =  0;
+            x = ( (j*palette_height)+i) * palette_comp;
+            memory.palette[x]=x%255;
+            memory.palette[x+1]=0;
+            memory.palette[x+2]=0;
         }
 
     texture palette_texture;
     
-    gl_load_texture(&palette_texture, memory.palette,palette_width, palette_height, palette_comp); 
+    gl_load_texture(    &palette_texture, 
+                        memory.palette,
+                        palette_width, 
+                        palette_height, 
+                        palette_comp
+                    ); 
 
     while(gl_update())
     {
         //if dirty
-        gl_update_texture(&palette_texture,0,0, palette_width, palette_height); 
+        
+        gl_update_texture(  &palette_texture,
+                            0,
+                            0, 
+                            palette_width, 
+                            palette_height
+                        ); 
         //draw
         //gl_set_uniform(uniform_scale, scale);
         gl_bind_texture(&palette_texture);
         gl_render(&palette_mesh);
     }   
+    gl_mesh_destroy(&palette_mesh); 
     gl_destroy(); 
     return 0;
 }

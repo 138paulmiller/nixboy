@@ -20,10 +20,9 @@ static const char * _vertex_source =
     //"uniform vec2 size;"
     "in vec2 pos;"
     "out vec2 uv;"
-   // "uniform float scale;"
     "void main(){"
         "uv=pos;"
-        "gl_Position  =vec4(uv,1,1);\n"
+        "gl_Position =vec4(uv,1,1);\n"
 
     "}";
 
@@ -35,6 +34,7 @@ const char * _fragment_source =
     "out vec4 color;"
     "void main(){\n"
         "color = texture(sampler,uv);\n"
+        //"color =vec4(uv,1,1);\n"
     "}";
 
 
@@ -103,13 +103,13 @@ void destroy_shader()
 /////////////////////////////////////// Begin API ///////////////////////////////////////////////////
 
 
-void gl_init(int width, int height)
+void gl_init(const char * title, int width, int height)
 {
     if(SDL_Init(SDL_INIT_EVERYTHING) < 0){
         puts("SDL Failed to initialize!"); exit(0);     
     }        
     
-    _sdl_window = SDL_CreateWindow("cccc",SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    _sdl_window = SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
     width, height, SDL_WINDOW_OPENGL);
     //Initialize opengl color attributes buffer size
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
@@ -166,9 +166,10 @@ int gl_update()
 
 void gl_load_mesh(mesh * obj, float * data, float size, float comp)
 {
+    int comp_size = comp*sizeof(float);
     obj->data = data;
     obj->size = size;
-    obj->num_verts = obj->size/comp;
+    obj->num_verts = obj->size/comp_size;
 
     glUseProgram(_program); //Attaching shaders
     glGenVertexArrays(1, &obj->vao);
@@ -178,7 +179,7 @@ void gl_load_mesh(mesh * obj, float * data, float size, float comp)
     glBindBuffer(GL_ARRAY_BUFFER, obj->vbo);
 
     glBufferData(GL_ARRAY_BUFFER, obj->size, obj->data, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, comp, GL_FLOAT, GL_FALSE, comp*sizeof(float), 0);
+    glVertexAttribPointer(0, comp, GL_FLOAT, GL_FALSE, comp_size, 0);
     glEnableVertexAttribArray(0);//enabel to draw 
 }
 
@@ -202,7 +203,12 @@ void gl_bind_texture(texture * obj)
     glBindTexture(GL_TEXTURE_2D, obj->handle);
 }
 
-#define gl_format(comp) (comp == 3 ? GL_RGB : (comp == 1 ? GL_RED : -1)); 
+#define comp_to_format(comp) (comp == 4 ?           \
+                        GL_RGBA :                  \
+                        (comp == 3 ?                \
+                            GL_RGB :                \
+                            (comp == 1 ?            \
+                                GL_RED : -1)));    \
 
 
 void gl_load_texture(texture * obj, byte * data, int width, int height, int comp) 
@@ -212,32 +218,42 @@ void gl_load_texture(texture * obj, byte * data, int width, int height, int comp
     obj->data = data;
     obj->comp = comp;
 
-    int format= gl_format(obj->comp);
+    int format= comp_to_format(obj->comp);
     if(format == -1) 
             error("Update Texture : invalid component value (%d)",comp);
     glUseProgram(_program); //Attaching shaders
     glGenTextures(1, &obj->handle);
     glBindTexture(GL_TEXTURE_2D, obj->handle);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,   GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,   GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,   GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,   GL_NEAREST);
-    //glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, format, GL_UNSIGNED_BYTE, obj->data);
+    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+    glTexImage2D
+        (
+        GL_TEXTURE_2D, 0,
+        GL_RGB, width, width, 0,
+        format, GL_UNSIGNED_BYTE, &data[0]
+        );
 }
 
 void gl_update_texture(texture * obj, int x, int y, int width, int height)
 {
-    int format= gl_format(obj->comp);
+    int format= comp_to_format(obj->comp);
     if(format == -1) 
             error("Update Texture : invalid component value (%d)",obj->comp);
     glBindTexture(GL_TEXTURE_2D, obj->handle);
-    //glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
-//    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, obj->width, obj->height, 0, format, GL_UNSIGNED_BYTE, obj->data);
+    glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, obj->width, obj->height, 0, format, GL_UNSIGNED_BYTE, obj->data);
 
-    glTexSubImage2D(GL_TEXTURE_2D, 0,
-                    x,y,width,height,
+    glTexSubImage2D(GL_TEXTURE_2D, 
+                    0,
+                    x,y,
+                    width,height,
                     format,
                     GL_UNSIGNED_BYTE, 
-                    obj->data);
+                    &obj->data[0]
+                    );
 
 }
 

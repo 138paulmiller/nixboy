@@ -13,4 +13,4 @@ all:
 	@echo "Success"  
 
 clean:
-	rm -$(BUILD_DIR)
+	rm $(BUILD_DIR)/*

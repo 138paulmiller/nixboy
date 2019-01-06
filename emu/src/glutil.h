@@ -2,9 +2,18 @@
 #define GLUTIL
 #include <stdio.h>
 #include <stdlib.h>
-typedef unsigned  char byte ;
-typedef unsigned  int uint ;
+typedef unsigned char byte ;
+typedef unsigned int uint ;
 
+typedef struct color
+{
+    union
+    {
+        struct {byte r,g,b;};
+    byte* data;
+    };
+        
+}color;
 
 
 //drawable rentangle
@@ -25,7 +34,7 @@ typedef struct
 
 } mesh ;
 
-void gl_init(int width, int height);
+void gl_init(const char * title, int width, int height);
 void gl_destroy();
 void gl_clear();
 int gl_update();
