@@ -1,5 +1,7 @@
-#include "glutil.h"
 
+#include "nixboy.h"
+
+//
 static const char * uniform_scale="scale";
 static const char * title="nixboy";
 
@@ -16,7 +18,6 @@ static const char * vertex_source =
 
     "}";
 
-
 const char * fragment_source = 
     "#version 130\n"
     "uniform sampler2D sampler;"
@@ -27,25 +28,14 @@ const char * fragment_source =
         //"color =vec4(uv,1,1);\n"
     "}";
 
-
-
-typedef struct Memory
-{
-    //All references are non-owning to allow swapping 
-    byte * palette; // 256 24 bit  Color values 
-    byte * tiles;   //tile sheet 8 bit 8x8 240x160 color grids  
-    byte * map;     //tile map  240x160 tile indexes
-}Memory ;
-
-
 int begin()
 {
-    Memory memory;
+    nb_cartridge cartridge;
 
     int width = 256, height = 256;
-    gl_init(title, width, height);
-    gl_load_shader(vertex_source, fragment_source);
-    mesh palette_mesh;
+    gfx_init(title, width, height);
+    gfx_load_shader(vertex_source, fragment_source);
+    gfx_mesh palette_mesh;
     float palette_verts[12] = {
         0, 0,
         0, 1,
@@ -55,7 +45,7 @@ int begin()
         1, 0,
         1, 1,
     };
-    gl_load_mesh(   &palette_mesh, 
+    gfx_load_mesh(   &palette_mesh, 
                     palette_verts,  
                     sizeof(palette_verts), 
                     2);
@@ -78,38 +68,40 @@ int begin()
             c->g=i;
             c->b=j;
         }
-
-    texture palette_texture;
+    gfx_texture palette_texture;
     
-    gl_load_texture(    &palette_texture, 
-                        &palette_data[0],
+    gfx_load_texture(    &palette_texture, 
+                        &(palette_data[0].data[0]),
                         palette_width, 
                         palette_height, 
                         palette_comp
                     ); 
 
-    //set the current palette to the cpu palette
-//memory.palette = &palette_data[0].data[0];
     
-    while(gl_update())
+    //set the current palette to the cpu palette
+    cartridge.palette = &(palette_data[0].data[0]);
+    
+    while(gfx_update())
     {
         //if dirty
+
         
-        gl_update_texture(  &palette_texture,
+        gfx_update_texture(  &palette_texture,
                             0,
                             0, 
                             palette_width, 
                             palette_height
                         ); 
+        
         //draw
-        //gl_set_uniform(uniform_scale, scale);
-        gl_bind_texture(&palette_texture);
-        gl_render(&palette_mesh);
+        //gfx_set_uniform(uniform_scale, scale);
+        gfx_bind_texture(&palette_texture);
+        gfx_render(&palette_mesh);
     }   
 
     free(palette_data);
-    gl_mesh_destroy(&palette_mesh); 
-    gl_destroy(); 
+    gfx_destroy_mesh(&palette_mesh); 
+    gfx_destroy(); 
     return 0;
 }
 
