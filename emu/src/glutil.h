@@ -10,7 +10,7 @@ typedef struct color
     union
     {
         struct {byte r,g,b;};
-    byte* data;
+        byte data[3];
     };
         
 }color;
@@ -20,7 +20,7 @@ typedef struct color
 typedef struct 
 {
     int handle;        //texture object handle 
-    byte * data;        //weak, nonowning ref
+    color * data;        //weak, nonowning ref
     int width, height;
     int comp;
 
@@ -39,21 +39,24 @@ void gl_destroy();
 void gl_clear();
 int gl_update();
 
+
+void gl_load_shader(const char * vertex_source, const char * fragment_source);
+
 //todo specifiy render targetsvoid gl_render();
 
 void gl_load_mesh(mesh * obj, float * data, float size, float comp);
 
 void gl_render(mesh * obj);
+
 void gl_mesh_destroy(mesh * obj);
 
 //TODO Remove and change from load_map, load_sprite, load_palette
 void gl_bind_texture(texture * obj);
 
-void gl_load_texture(texture * obj, byte * data,  int width, int height,int comp);
+void gl_load_texture(texture * obj, color * data,  int width, int height,int comp);
 
 //x,y,w,h, is sub rect
 void gl_update_texture(texture * obj, int x, int y, int width, int height);
-
 
 void gl_set_uniform(const char * name, float value);
 

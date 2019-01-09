@@ -1,11 +1,9 @@
 CC=gcc
 SRC=$(wildcard  src/*.c)
-LIBS = -lGLEW -lGLU -lGL -lSDL2 -lSDL2main 
-BUILD_DIR = build
+LIBS =-lGLEW -lGLU -lGL -lSDL2 -lSDL2main 
+BUILD_DIR=build
 OUT=nixboy
-
-
-COMPILE = $(CC) $(SRC) -o $(BUILD_DIR)/$(OUT) $(LIBS) 
+COMPILE=$(CC) $(SRC) -o $(BUILD_DIR)/$(OUT) $(LIBS) 
 
 all: $(BUILD_DIR)
 	$(COMPILE) 

@@ -15,27 +15,6 @@ int _vert_shader, _frag_shader, _program;
 // x = i/w
 // y = i%w
 
-static const char * _vertex_source = 
-    "#version 130\n"
-    //"uniform vec2 size;"
-    "in vec2 pos;"
-    "out vec2 uv;"
-    "void main(){"
-        "uv=pos;"
-        "gl_Position =vec4(uv,1,1);\n"
-
-    "}";
-
-
-const char * _fragment_source = 
-    "#version 130\n"
-    "uniform sampler2D sampler;"
-    "in vec2 uv;"
-    "out vec4 color;"
-    "void main(){\n"
-        "color = texture(sampler,uv);\n"
-        //"color =vec4(uv,1,1);\n"
-    "}";
 
 
 int check_error(int  shader, int  flag, int isProgram)//////////////////remove eventually
@@ -70,20 +49,6 @@ int create_shader_stage(uint type, const char* source)
     check_error(shader, GL_COMPILE_STATUS,0);
     return shader;
 
-}
-
-void load_shader()
-{
-    _program = glCreateProgram();
-    puts("Vert...");
-    glAttachShader(_program, create_shader_stage(GL_VERTEX_SHADER, _vertex_source) );
-    puts("Frag....");
-    glAttachShader(_program, create_shader_stage(GL_FRAGMENT_SHADER,_fragment_source) );
-    glLinkProgram(_program);
-    if(check_error(_program, GL_LINK_STATUS, 1))
-        return;
-    glValidateProgram(_program);
-    if(check_error(_program, GL_VALIDATE_STATUS, 1))return;
 }
 
 
@@ -125,9 +90,7 @@ void gl_init(const char * title, int width, int height)
     {
         error("GLEW Failed to initialize %d", status);
         
-    }  
-
-    load_shader(); 
+    }   
 }
 
 
@@ -162,6 +125,19 @@ int gl_update()
 }
 
 
+void gl_load_shader(const char * vertex_source, const char * fragment_source)
+{
+    _program = glCreateProgram();
+    puts("Vert...");
+    glAttachShader(_program, create_shader_stage(GL_VERTEX_SHADER, vertex_source) );
+    puts("Frag....");
+    glAttachShader(_program, create_shader_stage(GL_FRAGMENT_SHADER,fragment_source) );
+    glLinkProgram(_program);
+    if(check_error(_program, GL_LINK_STATUS, 1))
+        return;
+    glValidateProgram(_program);
+    if(check_error(_program, GL_VALIDATE_STATUS, 1))return;
+}
 
 
 void gl_load_mesh(mesh * obj, float * data, float size, float comp)
@@ -211,7 +187,7 @@ void gl_bind_texture(texture * obj)
                                 GL_RED : -1)));    \
 
 
-void gl_load_texture(texture * obj, byte * data, int width, int height, int comp) 
+void gl_load_texture(texture * obj, color * data, int width, int height, int comp) 
 { 
     obj->width = width;
     obj->height = height;
@@ -229,12 +205,7 @@ void gl_load_texture(texture * obj, byte * data, int width, int height, int comp
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,   GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,   GL_NEAREST);
     glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-    glTexImage2D
-        (
-        GL_TEXTURE_2D, 0,
-        GL_RGB, width, width, 0,
-        format, GL_UNSIGNED_BYTE, &data[0]
-        );
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, width, width, 0,format, GL_UNSIGNED_BYTE, (byte*)data);
 }
 
 void gl_update_texture(texture * obj, int x, int y, int width, int height)
@@ -246,14 +217,7 @@ void gl_update_texture(texture * obj, int x, int y, int width, int height)
     glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
     //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, obj->width, obj->height, 0, format, GL_UNSIGNED_BYTE, obj->data);
 
-    glTexSubImage2D(GL_TEXTURE_2D, 
-                    0,
-                    x,y,
-                    width,height,
-                    format,
-                    GL_UNSIGNED_BYTE, 
-                    &obj->data[0]
-                    );
+    glTexSubImage2D(GL_TEXTURE_2D, 0,x,y,width,height,format,GL_UNSIGNED_BYTE, (byte*)obj->data);
 
 }
 
