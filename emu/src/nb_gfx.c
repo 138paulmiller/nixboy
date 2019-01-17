@@ -10,7 +10,6 @@ static SDL_GLContext   _sdl_gfx_context;
 
 static int _vert_shader, _frag_shader, _program;
 
-
 #define error(...) {printf(__VA_ARGS__);exit(-1);}
 
 
@@ -61,9 +60,6 @@ void destroy_shader()
     glDeleteProgram(_program);
 
 }
-
-
-
 
 
 /////////////////////////////////////// Begin API ///////////////////////////////////////////////////
@@ -141,23 +137,37 @@ void gfx_load_shader(const char * vertex_source, const char * fragment_source)
 }
 
 
-void gfx_load_mesh(gfx_mesh * mesh, float * data, float size, float comp)
+void gfx_load_mesh(gfx_mesh * mesh, gfx_vertex *  verts, int size)
 {
-    int comp_size = comp*sizeof(float);
-    mesh->data = data;
-    mesh->size = size;
-    mesh->num_verts = mesh->size/comp_size;
+    int comp_size = 2*sizeof(float);
 
+    int stride = 4*sizeof(float);
+        
+
+    mesh->verts = verts;
+    mesh->num_verts = size/comp_size;
     glUseProgram(_program); //Attaching shaders
+
+    int pos_loc = glGetAttribLocation(_program, GFX_ATTRIB_POS);
+    int uv_loc = glGetAttribLocation(_program, GFX_ATTRIB_UV);
+    if(pos_loc == -1)
+        error("GFX Invalid name for Position Attrib: Expected %s", GFX_ATTRIB_POS);
+    if(uv_loc == -1)
+        error("GFX Invalid name for UV Attrib: Expected %s", GFX_ATTRIB_UV);
     glGenVertexArrays(1, &mesh->vao);
     glBindVertexArray(mesh->vao);
 
     glGenBuffers(1, &mesh->vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
 
-    glBufferData(GL_ARRAY_BUFFER, mesh->size, mesh->data, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, comp, GL_FLOAT, GL_FALSE, comp_size, 0);
-    glEnableVertexAttribArray(0);//enabel to draw 
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+    glBufferData(GL_ARRAY_BUFFER, size, verts, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(pos_loc, 2, GL_FLOAT, GL_FALSE, stride, 0);
+    glEnableVertexAttribArray(pos_loc);//enable to draw
+    
+    glVertexAttribPointer(uv_loc, 2, GL_FLOAT, GL_FALSE, stride, comp_size);
+    glEnableVertexAttribArray(uv_loc);//enable to draw
+
 }
 
 void gfx_destroy_mesh(gfx_mesh * mesh)
@@ -177,52 +187,73 @@ void gfx_render(gfx_mesh * mesh)
 
 void gfx_bind_texture(gfx_texture * texture)
 {
-    glBindTexture(GL_TEXTURE_2D, texture->handle);
+    glBindTexture(texture->type, texture->handle);
 }
 
 
-void gfx_load_texture(gfx_texture * texture, byte * data, int width, int height, int comp) 
+void  gfx_load_texture(gfx_texture * texture, gfx_type type, gfx_format format, byte  * data, int width, int height)
 { 
     texture->width = width;
     texture->height = height;
     texture->data = data;
 
-    glUseProgram(_program); //Attaching shaders
-    glGenTextures(1, &texture->handle);
-    glBindTexture(GL_TEXTURE_2D, texture->handle);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,   GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,   GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,   GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,   GL_NEAREST);
-    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-
-    switch(comp)
+    switch(type)
     {
-        case 4: 
+        case  GFX_TEX_1D: 
+            texture->type = GL_TEXTURE_1D;  
+        break;
+        case GFX_TEX_2D: 
+            texture->type = GL_TEXTURE_2D;  
+        break;
+        default:
+            error("GFX: load texture : invalid format value (%d)",format);
+        break;
+    }
+    switch(format)
+    {
+        case GFX_RGBA8: 
             texture->format = GL_RGBA;  
         break;
-        case 3: 
+        case GFX_RGB8: 
             texture->format = GL_RGB;  
         break;
-        case 2: 
+        case GFX_RG8: 
             texture->format = GL_RG;
         break;
-        case 1: 
+        case GFX_R8: 
             texture->format = GL_RED;
         break;
         default:
-            error("Update gfx_texture : invalid component value (%d)",comp);
+            error("GFX: load texture : invalid format type (%d)",type);
         break;
     }
+    glUseProgram(_program); 
+    glGenTextures(1, &texture->handle);
+    glBindTexture(texture->type, texture->handle);
+    glTexParameteri(texture->type, GL_TEXTURE_WRAP_S,   GL_CLAMP_TO_BORDER);
+    glTexParameteri(texture->type, GL_TEXTURE_WRAP_T,   GL_CLAMP_TO_BORDER);
+    glTexParameteri(texture->type, GL_TEXTURE_MIN_FILTER,   GL_NEAREST);
+    glTexParameteri(texture->type, GL_TEXTURE_MAG_FILTER,   GL_NEAREST);
+    
+    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+    glTexImage2D(texture->type, 0, GL_RGBA8, width, height, 0, texture->format, GL_UNSIGNED_BYTE, data);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, width, 0,texture->format, GL_UNSIGNED_BYTE, data);
+    float border_color[] = { 1.0, 1.0, 1.0 };
+    glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
+ 
+    glBindTexture(texture->type, 0); //unbind
+   
 }
 
 void gfx_update_texture(gfx_texture * texture, int x, int y, int width, int height)
 {
-    glBindTexture(GL_TEXTURE_2D, texture->handle);
+    glBindTexture(texture->type, texture->handle);
     glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
-    glTexSubImage2D(GL_TEXTURE_2D, 0,x,y,width,height,texture->format, GL_UNSIGNED_BYTE, texture->data);
+    glTexSubImage2D(texture->type, 0,x,y,width,height,texture->format, GL_UNSIGNED_BYTE, texture->data);
+    float border_color[] = { 1.0, 1.0, 1.0 };
+    glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
+ 
+    glBindTexture(texture->type, 0);
 
 }
 
@@ -233,3 +264,4 @@ void gfx_set_uniform(const char * name, float value)
             error("Could not set uniform (%s)",name);
     glUniform1f(location, value); 
 }
+
