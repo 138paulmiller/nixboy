@@ -4,42 +4,48 @@
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 
+//Global State
 static SDL_Window*     _sdl_window;
 static SDL_Event*      _sdl_event;
 static SDL_GLContext   _sdl_gfx_context;
-
 static int _vert_shader, _frag_shader, _program;
-
-#define error(...) {printf(__VA_ARGS__);exit(-1);}
 
 
 //map all indices from 1d to 2d using size of palette, sheet or map
 // x = i/w
 // y = i%w
 
-static int check_shader_error(int  shader, int  flag, int isProgram)//////////////////remove eventually
+static int check_shader_error(int  shader, int  flag, int is_program)
 {
     int status = 0;
-    isProgram ?
-        glGetProgramiv(shader, flag, &status)
-        : glGetShaderiv(shader, flag, &status);
+    if(is_program){
+        glGetProgramiv(shader, flag, &status);
+    }
+    else{
+        glGetShaderiv(shader, flag, &status);
+    }
     if (status == GL_FALSE)
     {
-        int errorLen = 0;
-        isProgram ?
-            glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &errorLen)
-            : glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &errorLen);
-        char* errorMsg = (char*)malloc(errorLen);
-        isProgram ?
-            glGetProgramInfoLog(shader, errorLen, &errorLen, errorMsg)
-            : glGetShaderInfoLog(shader, errorLen, &errorLen, errorMsg);
-        printf("Shader Log: %d %s \n", errorLen, errorMsg);
-        free( errorMsg);
+        int error_len = 0;
+        if(is_program ){
+            glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &error_len);
+        }
+        else{
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &error_len);
+        }
+        char* error_msg = (char*)nb_malloc(error_len);
+        if(is_program){
+            glGetProgramInfoLog(shader, error_len, &error_len, error_msg);
+        }
+        else{
+            glGetShaderInfoLog(shader, error_len, &error_len, error_msg);
+        }
+        printf("Shader Log: %d %s \n", error_len, error_msg);
+        nb_free( error_msg);
         return 0;
     }
     return 1;
 }
-
 
 static int create_shader_stage(uint type, const char* source)
 {
@@ -137,15 +143,14 @@ void gfx_load_shader(const char * vertex_source, const char * fragment_source)
 }
 
 
-void gfx_load_mesh(gfx_mesh * mesh, gfx_vertex *  verts, int size)
+void gfx_load_mesh(gfx_mesh * mesh, gfx_vertex *  verts, int num_verts)
 {
-    int comp_size = 2*sizeof(float);
-
+    int comp_size = sizeof(gfx_vertex);
     int stride = 4*sizeof(float);
-        
+    int size = sizeof(gfx_vertex)*num_verts;        
 
     mesh->verts = verts;
-    mesh->num_verts = size/comp_size;
+    mesh->num_verts = num_verts;
     glUseProgram(_program); //Attaching shaders
 
     int pos_loc = glGetAttribLocation(_program, GFX_ATTRIB_POS);
@@ -165,7 +170,7 @@ void gfx_load_mesh(gfx_mesh * mesh, gfx_vertex *  verts, int size)
     glVertexAttribPointer(pos_loc, 2, GL_FLOAT, GL_FALSE, stride, 0);
     glEnableVertexAttribArray(pos_loc);//enable to draw
     
-    glVertexAttribPointer(uv_loc, 2, GL_FLOAT, GL_FALSE, stride, comp_size);
+    glVertexAttribPointer(uv_loc, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(gfx_vertex, uv));
     glEnableVertexAttribArray(uv_loc);//enable to draw
 
 }
@@ -175,6 +180,7 @@ void gfx_destroy_mesh(gfx_mesh * mesh)
     glUseProgram(_program); //Attaching shaders
     glDeleteVertexArrays(1, &mesh->vao);
     glDeleteBuffers(1, &mesh->vbo);
+    mesh->verts=0;
 
 }
 void gfx_render(gfx_mesh * mesh)
@@ -191,7 +197,7 @@ void gfx_bind_texture(gfx_texture * texture)
 }
 
 
-void  gfx_load_texture(gfx_texture * texture, gfx_type type, gfx_format format, byte  * data, int width, int height)
+void  gfx_load_texture(gfx_texture * texture, gfx_texture_type type, gfx_format format, byte  * data, int width, int height)
 { 
     texture->width = width;
     texture->height = height;
@@ -199,10 +205,10 @@ void  gfx_load_texture(gfx_texture * texture, gfx_type type, gfx_format format, 
 
     switch(type)
     {
-        case  GFX_TEX_1D: 
+        case  GFX_TEXTURE_1D: 
             texture->type = GL_TEXTURE_1D;  
         break;
-        case GFX_TEX_2D: 
+        case GFX_TEXTURE_2D: 
             texture->type = GL_TEXTURE_2D;  
         break;
         default:
@@ -252,9 +258,7 @@ void gfx_update_texture(gfx_texture * texture, int x, int y, int width, int heig
     glTexSubImage2D(texture->type, 0,x,y,width,height,texture->format, GL_UNSIGNED_BYTE, texture->data);
     float border_color[] = { 1.0, 1.0, 1.0 };
     glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
- 
     glBindTexture(texture->type, 0);
-
 }
 
 void gfx_set_uniform(const char * name, float value)
@@ -265,3 +269,25 @@ void gfx_set_uniform(const char * name, float value)
     glUniform1f(location, value); 
 }
 
+
+void  gfx_init_rect(gfx_rect * rect, int x, int y, int w, int h)
+{
+    rect->mesh.verts = nb_malloc(6*sizeof(gfx_vertex));
+    
+        //pos,  uv
+    //rect->mesh.verts[0] =  { {0,                   0                   },  {0,0}};
+    //rect->mesh.verts[1] =  { {0,                   NB_SCREEN_HEIGHT/2  },  {0,1}};
+    //rect->mesh.verts[2] =  { {NB_SCREEN_WIDTH/2,   NB_SCREEN_HEIGHT/2  },  {1,1}};        
+    //rect->mesh.verts[3] =  { {0,                   0                   },  {0,0}};
+    //rect->mesh.verts[4] =  { {NB_SCREEN_WIDTH/2,   0                   },  {1,0}};
+    //rect->mesh.verts[5] =  { {NB_SCREEN_WIDTH/2,   NB_SCREEN_HEIGHT/2  },  {1,1}};    
+    
+    gfx_load_mesh(&rect->mesh, rect->mesh.verts, 6);
+}
+
+
+void  gfx_destroy_rect(gfx_rect * rect)
+{
+    free(rect->mesh.verts);
+    gfx_destroy_mesh(&rect->mesh);
+}

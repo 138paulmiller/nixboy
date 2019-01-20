@@ -9,38 +9,34 @@ x -----------------------------------Begin Bankable Memory
 |---- | ---------------|-------|
 |     | Palette        | 768   |
 |---- | ---------------|-------|
-|     | Tile Atlas     | 512   | 
+|     | Tile Sheet     | 512   | 
 |---- | ---------------|-------|
 |     | Tile Map       | ????  | 
-|---- | ---------------|-------|
-|     | Tile Atlas     | ????  |
 |---- | ---------------|-------|
 |     | Sprite Sheet   | ????  | 
 |---- | ---------------|-------|
 |     | Sprite Map     | ????  |
 x -----------------------------------End Bankable Memory
-
 |---- | ---------------|-------|  
 |     | Scroll Offset  | 4     |  
 |---- | ---------------|-------|
 |     | Screen         | 4800  |
 |---- | ---------------|-------|
 
-///Banks for Palette/Tile Atlas/Tile Map
 - Display is 240 x 160 4 bit colors
 	
 - Palette
-	* 16, 24-bit color values
-	* Bits per component R8G8B8
-- Tile Atlas 
-	* 256 x 256  8 bit color indices. Each byte indexes the color palette
+	* 16, 32-bit color values
+	* Bits per component R8G8B8A8
+- Tile Sheet 
+	* 256 x 256  4 bit color indices. Each byte indexes the color palette
 	* Represents a texture atlas, composed of 8x8 tiles, allowing for 64 tiles in memory.
 - Tile Map
 	*  8 bit 256 x 256 tile indexes
 	*	Defines Level
 		- Level pixel size = 256*8 = 2048 x 2048
 -Sprite sheet
-	* 8 bit 256x256 tile indexes
+	* 4 bit 256x256 tile indexes
 	* Sprite Modes 
 	* Each tile/sprite is a rectangular collection of indices, either
 		1. Default 8x8
@@ -52,7 +48,6 @@ x -----------------------------------End Bankable Memory
 		- Drawn in order, lowest address to highest
 		- Each sprite is given a unique index into this array
 		- Each Sprite Description block containts and screen x,y position, sprite type, and x,y position of bottom leftmost pixel in the sprite sheet,
-		
 	- Sprite Description block
 	Addr:0   8   16  32  38 
 	     ---------------------
@@ -81,6 +76,8 @@ x -----------------------------------End Bankable Memory
 #define NB_SCREEN_HEIGHT 		160 
 #define NB_TITLE 				"nixboy"
 
+
+
 /*
 Create a nb_rect that encapuslates verts,uvs.  texture  class that will render sprites, 
 */
@@ -101,13 +98,21 @@ typedef enum nb_tile_mode
 	INVALID=-1, DEFAULT, SMALL, TALL, WIDE    
 }	nb_tile_mode;
 
-//Used for rendering
+//Used for rendering. Used to bind to the opengl
 typedef struct nb_palette
 {
 	color * data;  // 256 24 bit  Color values     
-	gfx_texture texture;	
+	gfx_texture texture;
+	int width, height;		
 }	nb_palette;
 
+
+typedef struct nb_sheet
+{
+	byte * data;  // 256 24 bit  Color values     
+	gfx_texture texture;
+	int width, height;	
+}	nb_sheet;
 
 
 //Draw mode - Per pixel. Raw Set pixel functionality

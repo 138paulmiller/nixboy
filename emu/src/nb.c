@@ -62,16 +62,15 @@ int demo()
     gfx_mesh palette_mesh;
     gfx_vertex palette_verts[6] = {
         //pos,  uv
-        { {0,0},                                        {0,0}},
-        { {0,                   NB_SCREEN_HEIGHT/2},    {0,1}},
-        { {NB_SCREEN_WIDTH/2,   NB_SCREEN_HEIGHT/2},    {1,1}},
-        
-        { {0,0},                                        {0,0}},
-        { {NB_SCREEN_WIDTH/2,   0},                     {1,0}},
-        { {NB_SCREEN_WIDTH/2,   NB_SCREEN_HEIGHT/2},    {1,1}}
+        { {0,                   0                   },  {0,0}},
+        { {0,                   NB_SCREEN_HEIGHT/2  },  {0,1}},
+        { {NB_SCREEN_WIDTH/2,   NB_SCREEN_HEIGHT/2  },  {1,1}},        
+        { {0,                   0                   },  {0,0}},
+        { {NB_SCREEN_WIDTH/2,   0                   },  {1,0}},
+        { {NB_SCREEN_WIDTH/2,   NB_SCREEN_HEIGHT/2  },  {1,1}}
     };
 
-    gfx_load_mesh(   &palette_mesh, palette_verts,  sizeof(palette_verts));
+    gfx_load_mesh(   &palette_mesh, palette_verts,  6);
     
     //each palette color is a R8G8B8A8
     
@@ -92,11 +91,12 @@ int demo()
             c->r = (x*sizeof(color))%255;
             c->g = 0;
             c->b = 0;
+            c->a = 1;
         }
     gfx_texture palette_texture;
     
     gfx_load_texture(   &palette_texture, 
-                        GFX_TEX_2D, GFX_RGB8,
+                        GFX_TEXTURE_2D, GFX_RGBA8,
                         palette_data,
                         palette_width, palette_height); 
 
