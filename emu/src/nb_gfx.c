@@ -8,14 +8,13 @@
 static SDL_Window*     _sdl_window;
 static SDL_Event*      _sdl_event;
 static SDL_GLContext   _sdl_gfx_context;
-static int _vert_shader, _frag_shader, _program;
-
+static gfx_shader *     _active_shader;  //currently bound shader
 
 //map all indices from 1d to 2d using size of palette, sheet or map
 // x = i/w
 // y = i%w
 
-static int check_shader_error(int  shader, int  flag, int is_program)
+static gfx_status _check_shader_error(int shader, int  flag, int is_program)
 {
     int status = 0;
     if(is_program){
@@ -40,30 +39,24 @@ static int check_shader_error(int  shader, int  flag, int is_program)
         else{
             glGetShaderInfoLog(shader, error_len, &error_len, error_msg);
         }
-        printf("Shader Log: %d %s \n", error_len, error_msg);
+        printf("\nShader Log: %d %s \n", error_len, error_msg);
         nb_free( error_msg);
-        return 0;
+        return GFX_FAILURE;
     }
-    return 1;
+    return GFX_SUCCESS;
 }
 
-static int create_shader_stage(uint type, const char* source)
+static  gfx_status _create_shader_stage(uint type, const char* source)
 {
     int shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, 0);
     glCompileShader(shader);
-    check_shader_error(shader, GL_COMPILE_STATUS,0);
+    
+    if(_check_shader_error(shader, GL_COMPILE_STATUS,0)==GFX_FAILURE){
+        return GFX_FAILURE;
+    }
+    
     return shader;
-
-}
-
-
-
-void destroy_shader()
-{
-    glDeleteShader(_vert_shader); // removes
-    glDeleteShader(_frag_shader); // removes
-    glDeleteProgram(_program);
 
 }
 
@@ -71,7 +64,7 @@ void destroy_shader()
 /////////////////////////////////////// Begin API ///////////////////////////////////////////////////
 
 
-void gfx_init(const char * title, int width, int height)
+ gfx_status gfx_init(const char * title, int width, int height)
 {
     if(SDL_Init(SDL_INIT_EVERYTHING) < 0){
         puts("SDL Failed to initialize!"); exit(0);     
@@ -91,16 +84,15 @@ void gfx_init(const char * title, int width, int height)
     int status = glewInit(); 
     if(status != GLEW_OK)
     {
-        error("GLEW Failed to initialize %d", status);
-        
+        nb_error("GLEW Failed to initialize %d", status);
+        return GFX_FAILURE; 
     }   
+    return GFX_SUCCESS;
 }
 
 
 void gfx_destroy()
 {
-    destroy_shader(); 
-
     SDL_DestroyWindow(_sdl_window);
     SDL_GL_DeleteContext(_sdl_gfx_context);
     SDL_Quit();
@@ -124,26 +116,79 @@ int gfx_update()
     return 1;
 
     gfx_clear();
-    glUseProgram(_program); //Attaching shaders
 }
 
 
-void gfx_load_shader(const char * vertex_source, const char * fragment_source)
+ gfx_status  gfx_init_shader(gfx_shader * shader, const char * vertex_source, const char * fragment_source)
 {
-    _program = glCreateProgram();
-    puts("Vert...");
-    glAttachShader(_program, create_shader_stage(GL_VERTEX_SHADER, vertex_source) );
-    puts("Frag....");
-    glAttachShader(_program, create_shader_stage(GL_FRAGMENT_SHADER,fragment_source) );
-    glLinkProgram(_program);
-    if(check_shader_error(_program, GL_LINK_STATUS, 1))
-        return;
-    glValidateProgram(_program);
-    if(check_shader_error(_program, GL_VALIDATE_STATUS, 1))return;
+    shader->program = glCreateProgram();
+    shader->vert_shader   = _create_shader_stage(GL_VERTEX_SHADER, vertex_source);
+    if(shader->vert_shader == GFX_FAILURE)
+    {
+        nb_error("Failed to Init Vertex Shader");
+        return GFX_FAILURE;
+    }
+    shader->frag_shader   = _create_shader_stage(GL_FRAGMENT_SHADER,fragment_source);
+    if(shader->frag_shader == GFX_FAILURE)
+    {
+        nb_error("Failed to Init Fragment Shader");
+        return GFX_FAILURE;
+    }
+    
+    glAttachShader(shader->program,  shader->vert_shader);
+    glAttachShader(shader->program,  shader->frag_shader);
+    glLinkProgram(shader->program);
+    if(_check_shader_error(shader->program, GL_LINK_STATUS, 1)== GFX_FAILURE){
+        return GFX_FAILURE;
+    }
+    glValidateProgram(shader->program);
+    if(_check_shader_error(shader->program, GL_VALIDATE_STATUS, 1) == GFX_FAILURE){
+        return GFX_FAILURE;
+    }
+    
+    shader->pos_loc = glGetAttribLocation(shader->program, GFX_ATTRIB_POS);
+    shader->uv_loc = glGetAttribLocation(shader->program, GFX_ATTRIB_UV);
+    if(shader->pos_loc == -1)
+    {
+        nb_error("GFX Invalid name for Position Attrib: Expected %s", GFX_ATTRIB_POS);
+        return GFX_FAILURE;
+    }
+    if(shader->uv_loc == -1)
+    {
+        nb_error("GFX Invalid name for UV Attrib: Expected %s", GFX_ATTRIB_UV);
+        return GFX_FAILURE;
+    }
+    return GFX_SUCCESS;
+
+}
+void    gfx_destroy_shader(gfx_shader * shader)
+{
+    glDeleteShader(shader->vert_shader); // removes
+    glDeleteShader(shader->frag_shader); // removes
+    glDeleteProgram(shader->program);
+
+}
+
+void    gfx_bind_shader(gfx_shader * shader)
+{
+    _active_shader = shader;
+    glUseProgram(shader->program); //Attaching shaders
+}
+gfx_status    gfx_set_uniform(gfx_shader * shader, const char * name, float value)
+{
+    int location = glGetUniformLocation(shader->program, name);
+    if(location == -1) 
+    {
+        nb_error("Could not set uniform (%s)",name);
+        return GFX_FAILURE;
+    }   
+    glUniform1f(location, value); 
+    return GFX_SUCCESS;
 }
 
 
-void gfx_load_mesh(gfx_mesh * mesh, gfx_vertex *  verts, int num_verts)
+
+gfx_status gfx_init_mesh(gfx_mesh * mesh, gfx_shader * shader, gfx_vertex *  verts, int num_verts)
 {
     int comp_size = sizeof(gfx_vertex);
     int stride = 4*sizeof(float);
@@ -151,14 +196,9 @@ void gfx_load_mesh(gfx_mesh * mesh, gfx_vertex *  verts, int num_verts)
 
     mesh->verts = verts;
     mesh->num_verts = num_verts;
-    glUseProgram(_program); //Attaching shaders
+    mesh->shader = shader;
+    glUseProgram(shader->program); //Attaching shaders
 
-    int pos_loc = glGetAttribLocation(_program, GFX_ATTRIB_POS);
-    int uv_loc = glGetAttribLocation(_program, GFX_ATTRIB_UV);
-    if(pos_loc == -1)
-        error("GFX Invalid name for Position Attrib: Expected %s", GFX_ATTRIB_POS);
-    if(uv_loc == -1)
-        error("GFX Invalid name for UV Attrib: Expected %s", GFX_ATTRIB_UV);
     glGenVertexArrays(1, &mesh->vao);
     glBindVertexArray(mesh->vao);
 
@@ -167,27 +207,31 @@ void gfx_load_mesh(gfx_mesh * mesh, gfx_vertex *  verts, int num_verts)
     glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
     glBufferData(GL_ARRAY_BUFFER, size, verts, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(pos_loc, 2, GL_FLOAT, GL_FALSE, stride, 0);
-    glEnableVertexAttribArray(pos_loc);//enable to draw
+    glVertexAttribPointer(shader->pos_loc, 2, GL_FLOAT, GL_FALSE, stride, 0);
+    glEnableVertexAttribArray(shader->pos_loc);//enable to draw
     
-    glVertexAttribPointer(uv_loc, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(gfx_vertex, uv));
-    glEnableVertexAttribArray(uv_loc);//enable to draw
+    glVertexAttribPointer(shader->uv_loc, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(gfx_vertex, uv));
+    glEnableVertexAttribArray(shader->uv_loc);//enable to draw
+    glUseProgram(0); //Attaching shaders
 
+    return GFX_SUCCESS;
 }
 
 void gfx_destroy_mesh(gfx_mesh * mesh)
 {
-    glUseProgram(_program); //Attaching shaders
+    glUseProgram(mesh->shader->program); //Attaching shaders
     glDeleteVertexArrays(1, &mesh->vao);
     glDeleteBuffers(1, &mesh->vbo);
     mesh->verts=0;
 
 }
-void gfx_render(gfx_mesh * mesh)
+void gfx_render_mesh(gfx_mesh * mesh)
 {
     glBindVertexArray(mesh->vao);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
     glDrawArrays(GL_TRIANGLES, 0,  mesh->num_verts);
+    glBindVertexArray(0);
+
 }
 
 
@@ -197,7 +241,7 @@ void gfx_bind_texture(gfx_texture * texture)
 }
 
 
-void  gfx_load_texture(gfx_texture * texture, gfx_texture_type type, gfx_format format, byte  * data, int width, int height)
+gfx_status  gfx_init_texture(gfx_texture * texture, gfx_texture_type type, gfx_format format, byte  * data, int width, int height)
 { 
     texture->width = width;
     texture->height = height;
@@ -212,7 +256,8 @@ void  gfx_load_texture(gfx_texture * texture, gfx_texture_type type, gfx_format 
             texture->type = GL_TEXTURE_2D;  
         break;
         default:
-            error("GFX: load texture : invalid format value (%d)",format);
+            nb_error("GFX: load texture : invalid format value (%d)",format);
+            return GFX_FAILURE;
         break;
     }
     switch(format)
@@ -230,10 +275,10 @@ void  gfx_load_texture(gfx_texture * texture, gfx_texture_type type, gfx_format 
             texture->format = GL_RED;
         break;
         default:
-            error("GFX: load texture : invalid format type (%d)",type);
+            nb_error("GFX: load texture : invalid format type (%d)",type);
+            return GFX_FAILURE;
         break;
     }
-    glUseProgram(_program); 
     glGenTextures(1, &texture->handle);
     glBindTexture(texture->type, texture->handle);
     glTexParameteri(texture->type, GL_TEXTURE_WRAP_S,   GL_CLAMP_TO_BORDER);
@@ -248,7 +293,7 @@ void  gfx_load_texture(gfx_texture * texture, gfx_texture_type type, gfx_format 
     glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
  
     glBindTexture(texture->type, 0); //unbind
-   
+    return GFX_SUCCESS;
 }
 
 void gfx_update_texture(gfx_texture * texture, int x, int y, int width, int height)
@@ -261,28 +306,33 @@ void gfx_update_texture(gfx_texture * texture, int x, int y, int width, int heig
     glBindTexture(texture->type, 0);
 }
 
-void gfx_set_uniform(const char * name, float value)
-{
-    int location = glGetUniformLocation(_program, name);
-    if(location == -1) 
-            error("Could not set uniform (%s)",name);
-    glUniform1f(location, value); 
-}
 
-
-void  gfx_init_rect(gfx_rect * rect, int x, int y, int w, int h)
+gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, int x, int y, int w, int h)
 {
-    rect->mesh.verts = nb_malloc(6*sizeof(gfx_vertex));
+ 
+    gfx_vertex * verts = nb_malloc(6*sizeof(gfx_vertex));
+    //tri 1
     
-        //pos,  uv
-    //rect->mesh.verts[0] =  { {0,                   0                   },  {0,0}};
-    //rect->mesh.verts[1] =  { {0,                   NB_SCREEN_HEIGHT/2  },  {0,1}};
-    //rect->mesh.verts[2] =  { {NB_SCREEN_WIDTH/2,   NB_SCREEN_HEIGHT/2  },  {1,1}};        
-    //rect->mesh.verts[3] =  { {0,                   0                   },  {0,0}};
-    //rect->mesh.verts[4] =  { {NB_SCREEN_WIDTH/2,   0                   },  {1,0}};
-    //rect->mesh.verts[5] =  { {NB_SCREEN_WIDTH/2,   NB_SCREEN_HEIGHT/2  },  {1,1}};    
+    verts[0].pos[0] =x;    verts[0].pos[1] =y;
+    verts[0].uv[0]  =0;    verts[0].uv[1]  =0;
+
+    verts[1].pos[0] =x;    verts[1].pos[1] =y+h;
+    verts[1].uv[0]  =0;    verts[1].uv[1]  =1;
+
+    verts[2].pos[0] =x+w;  verts[2].pos[1] =y+h;
+    verts[2].uv[0]  =1;    verts[2].uv[1]  =1;
+    //tri 2    
+    verts[3].pos[0] =x;    verts[3].pos[1] =y;
+    verts[3].uv[0]  =0;    verts[3].uv[1]  =0;
+
+    verts[4].pos[0] =x+w;  verts[4].pos[1] =y;
+    verts[4].uv[0]  =1;    verts[4].uv[1]  =0;
+
+    verts[5].pos[0] =x+w;  verts[5].pos[1] =y+h;
+    verts[5].uv[0]  =1;    verts[5].uv[1]  =1;
     
-    gfx_load_mesh(&rect->mesh, rect->mesh.verts, 6);
+    rect->mesh.verts = verts;
+    return gfx_init_mesh(&rect->mesh, shader, rect->mesh.verts, 6);
 }
 
 
@@ -290,4 +340,8 @@ void  gfx_destroy_rect(gfx_rect * rect)
 {
     free(rect->mesh.verts);
     gfx_destroy_mesh(&rect->mesh);
+}
+void  gfx_render_rect(gfx_rect * rect)
+{
+    gfx_render_mesh(&rect->mesh);   
 }

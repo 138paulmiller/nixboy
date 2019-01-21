@@ -46,7 +46,6 @@ const char * fragment_source =
     "out vec4 color;"
     "void main(){\n"
         "color = texture(sampler,uv);\n"
-        //"color =vec4(uv,1,1);\n"
     "}";
 
 void nb_draw_screen(nb_cpu * cpu){}
@@ -58,8 +57,21 @@ int demo()
 
     int width = NB_SCREEN_WIDTH, height = NB_SCREEN_HEIGHT;
     gfx_init(NB_TITLE, width, height);
-    gfx_load_shader(vertex_source, fragment_source);
+    
+    gfx_shader shader;
+    gfx_init_shader(&shader, vertex_source, fragment_source);
     gfx_mesh palette_mesh;
+/*
+    gfx_vertex palette_verts[6] = {
+        //pos,  uv
+        { {0,   0   },  {0,0}},
+        { {0,   1   },  {0,1}},
+        { {1,   1   },  {1,1}},        
+        { {0,   0   },  {0,0}},
+        { {1,   0   },  {1,0}},
+        { {1,   1   },  {1,1}}
+    };
+*/
     gfx_vertex palette_verts[6] = {
         //pos,  uv
         { {0,                   0                   },  {0,0}},
@@ -70,7 +82,11 @@ int demo()
         { {NB_SCREEN_WIDTH/2,   NB_SCREEN_HEIGHT/2  },  {1,1}}
     };
 
-    gfx_load_mesh(   &palette_mesh, palette_verts,  6);
+    //init mesh with the current shader. Mesh will be drawn with this shader
+    if(gfx_init_mesh(   &palette_mesh, &shader, palette_verts,  6) == GFX_FAILURE)
+    {
+        nb_error("Failed to init mesh");
+    }
     
     //each palette color is a R8G8B8A8
     
@@ -86,25 +102,32 @@ int demo()
         for(i=0; i < palette_width; i++)
         {
             x = ( (j*palette_width)+i);
-            
             c = &palette_data[x];
-            c->r = (x*sizeof(color))%255;
+            c->r = x*6%255;
             c->g = 0;
             c->b = 0;
-            c->a = 1;
+            c->a = 255;
         }
     gfx_texture palette_texture;
     
-    gfx_load_texture(   &palette_texture, 
+    if(gfx_init_texture(   &palette_texture, 
                         GFX_TEXTURE_2D, GFX_RGBA8,
-                        palette_data,
-                        palette_width, palette_height); 
+                        &palette_data->data[0],
+                        palette_width, palette_height)== GFX_FAILURE)
+    {
+        nb_error("Failed to init texture ");
+    } 
 
     //set the current palette to the cpu palette
-    cpu.palette = &(palette_data[0]);
+    cpu.palette = (byte*)palette_data;
     
     while(gfx_update())
     {
+        gfx_bind_shader(&shader);
+        gfx_set_uniform(&shader, uniform_width, width);
+        gfx_set_uniform(&shader, uniform_height, height);
+        
+
         //if dirty
         gfx_update_texture(  &palette_texture,
                             0,
@@ -114,10 +137,8 @@ int demo()
                         ); 
         
         //draw
-        gfx_set_uniform(uniform_width, width);
-        gfx_set_uniform(uniform_height, height);
         gfx_bind_texture(&palette_texture);
-        gfx_render(&palette_mesh);
+        gfx_render_mesh(&palette_mesh);
     }   
 
     free(palette_data);

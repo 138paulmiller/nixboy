@@ -1,7 +1,7 @@
 #ifndef NB_GC_H
 #define NB_GC_H
 
-#include <stddef.h>
+#include <stdlib.h>
 #include "nb_types.h"
 /*
 	Garbage collection

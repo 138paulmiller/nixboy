@@ -6,6 +6,7 @@ TODO
 	See http://libcello.org/learn/garbage-collection
 	- Create QuadTree for sprites. Use for rendering
 	- Create "Batched" Rendering for multi-sheet levels?
+	- Render targets. Deferred/Forward Rendering!
 */
 
 extern void demo();
