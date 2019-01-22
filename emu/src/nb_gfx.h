@@ -8,9 +8,11 @@ Tile Renderer
 #include <stdlib.h>
 #include "nb_gc.h"
 
-#define GFX_ATTRIB_POS  "in_pos"
-#define GFX_ATTRIB_UV   "in_uv"
-
+//Expected defs
+#define GFX_ATTRIB_VERT      "in_vert"
+#define GFX_ATTRIB_UV        "in_uv"
+#define GFX_UNIFORM_POS      "pos"
+#define GFX_UNIFORM_SIZE     "size"
 
 typedef enum gfx_status
 {
@@ -46,9 +48,9 @@ typedef struct gfx_shader
     int frag_shader;
     int program;
     //vbo locations
-    int pos_loc;
+    int vert_loc;
     int uv_loc;
-
+    //
 } gfx_shader;
 
 typedef struct gfx_texture
@@ -63,8 +65,8 @@ typedef struct gfx_texture
 
 typedef struct gfx_vertex
 {
-    float pos[2];   //weak no owning vertex data ptr. Change to byte  scale to console size
-    float uv[2];    //weak no owning vertex data ptr. Change to byte  scale to console size
+    vec2f pos;   //weak no owning vertex data ptr. Change to byte  scale to console size
+    vec2b uv;    //weak no owning vertex data ptr. Change to byte  scale to console size
 } gfx_vertex;
 
 typedef struct gfx_mesh
@@ -80,8 +82,8 @@ typedef struct gfx_mesh
 //Binds 
 typedef struct gfx_rect
 {
-    vec2i pos;                  //position in level
-    vec2i size;                 //size to render
+    vec2f pos;                  //position in level
+    vec2f size;                 //size to render
     gfx_mesh    mesh;         //texture to render
 } gfx_rect;
 
@@ -117,6 +119,13 @@ typedef struct gfx_sprite
     byte flip_y; //if flipped along y axis 
 } gfx_sprite;
 
+typedef struct gfx_timer
+{
+    u32 now_ticks;   //time since paused
+    u32 last_ticks;   //time since paused
+    u32 delta_ticks;     //delta time in ms
+} gfx_timer;
+
 //gfx_nit* does not alloc objects!
 
 // --------- GFX Core ----- 
@@ -125,11 +134,26 @@ void        gfx_destroy();
 void        gfx_clear();
 int         gfx_update();
 
+// FPS Utils
+
+void         gfx_cap_fps(int max_fps);
+void         gfx_uncap_fps();
+float       gfx_delta_sec();
+float       gfx_delta_ms();
+float       gfx_fps();  //
+float       gfx_fpms();  //framesper millisec
+
+// ---------- GFX Timer ------------ updated on gfx_init and gfx_update
+void        gfx_timer_init(gfx_timer * timer);
+void         gfx_timer_tick(gfx_timer * timer);   //elapsed time while paused or not
+
 // --------- GFX Shader ----- 
 gfx_status  gfx_init_shader(gfx_shader * shader, const char * vertex_source, const char * fragment_source);
 void        gfx_destroy_shader(gfx_shader * shader);
 void        gfx_bind_shader(gfx_shader * shader);
 gfx_status  gfx_set_uniform(gfx_shader * shader, const char * name, float value);
+gfx_status  gfx_set_uniform_vec2i(gfx_shader * shader, const char * name, const vec2i * value);
+gfx_status  gfx_set_uniform_vec2f(gfx_shader * shader, const char * name, const vec2f * value);
 
 // --------- GFX Mesh ----- 
 gfx_status  gfx_init_mesh(gfx_mesh * mesh, gfx_shader * shader, gfx_vertex * verts, int num_verts);
@@ -142,7 +166,7 @@ void        gfx_bind_texture(gfx_texture * texture );
 void        gfx_update_texture(gfx_texture * texture, int x, int y, int width, int height);
 
 // --------- GFX Rect ----- 
-gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, int x, int y, int w, int h);
+gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, float x, float y, float w, float h);
 void        gfx_destroy_rect(gfx_rect * rect);
 void        gfx_render_rect(gfx_rect * rect);
 

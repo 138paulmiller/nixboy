@@ -8,7 +8,12 @@
 static SDL_Window*     _sdl_window;
 static SDL_Event*      _sdl_event;
 static SDL_GLContext   _sdl_gfx_context;
-static gfx_shader *     _active_shader;  //currently bound shader
+static gfx_shader *     _active_shader;  //create a shader stack to push and pop?
+static gfx_timer        _fps_timer;  //create a shader stack to push and pop?
+
+//Frames per Sec, Frames Per MilliSec
+static int  _fps_cap  = -1;
+static int _fpms_cap  = -1;
 
 //map all indices from 1d to 2d using size of palette, sheet or map
 // x = i/w
@@ -87,7 +92,9 @@ static  gfx_status _create_shader_stage(uint type, const char* source)
         nb_error("GLEW Failed to initialize %d", status);
         return GFX_FAILURE; 
     }   
+    gfx_timer_init(&_fps_timer);
     return GFX_SUCCESS;
+
 }
 
 
@@ -107,18 +114,70 @@ void gfx_clear()
 
 int gfx_update()
 {
-  //swap render and display buffers
-    SDL_GL_SwapWindow(_sdl_window);
     //Poll input events
     SDL_Event event;
     while (SDL_PollEvent(&event))
+    //TODO create Keymap 
         if (event.type == SDL_QUIT) return 0;
-    return 1;
 
+    SDL_GL_SwapWindow(_sdl_window);
     gfx_clear();
+    gfx_timer_tick(&_fps_timer); 
+    if(_fps_cap != -1 && gfx_fpms() < _fpms_cap)
+    {
+        SDL_Delay(( _fpms_cap - gfx_fpms() ));
+    }
+    return 1;
 }
 
 
+void gfx_cap_fps(int max_fps)
+{
+    _fps_cap  =max_fps;
+    _fpms_cap  = 1000/_fps_cap;
+}
+
+void gfx_uncap_fps()
+{
+     _fps_cap  =_fpms_cap = -1;
+}
+
+// ---------------- FPS Utils-------------------------------------
+float  gfx_delta_sec()
+{
+    return 0.001 * gfx_delta_ms();
+}
+float  gfx_delta_ms()
+{
+    return (_fps_timer.delta_ticks * 1000.f) /(float)SDL_GetPerformanceFrequency() ;
+}
+float  gfx_fps()
+{
+    return 1.0f/ (gfx_delta_sec());
+}
+
+float  gfx_fpms()
+{
+    return 1.0f/ (gfx_delta_ms());
+}
+
+void  gfx_timer_init(gfx_timer * timer){
+    timer->delta_ticks = 0;
+    timer->now_ticks =0;    
+    timer->last_ticks = 0;
+}
+
+void gfx_timer_tick(gfx_timer * timer)
+{
+
+    timer->last_ticks = timer->now_ticks;
+    timer->now_ticks = SDL_GetPerformanceCounter();
+    timer->delta_ticks = (timer->now_ticks - timer->last_ticks);
+}   //elapsed time while paused or not
+
+
+
+// -------------------------- Shader ---------------------------------------
  gfx_status  gfx_init_shader(gfx_shader * shader, const char * vertex_source, const char * fragment_source)
 {
     shader->program = glCreateProgram();
@@ -146,11 +205,11 @@ int gfx_update()
         return GFX_FAILURE;
     }
     
-    shader->pos_loc = glGetAttribLocation(shader->program, GFX_ATTRIB_POS);
+    shader->vert_loc = glGetAttribLocation(shader->program, GFX_ATTRIB_VERT);
     shader->uv_loc = glGetAttribLocation(shader->program, GFX_ATTRIB_UV);
-    if(shader->pos_loc == -1)
+    if(shader->vert_loc == -1)
     {
-        nb_error("GFX Invalid name for Position Attrib: Expected %s", GFX_ATTRIB_POS);
+        nb_error("GFX Invalid name for Position Attrib: Expected %s", GFX_ATTRIB_VERT);
         return GFX_FAILURE;
     }
     if(shader->uv_loc == -1)
@@ -174,24 +233,55 @@ void    gfx_bind_shader(gfx_shader * shader)
     _active_shader = shader;
     glUseProgram(shader->program); //Attaching shaders
 }
-gfx_status    gfx_set_uniform(gfx_shader * shader, const char * name, float value)
+
+#define _GET_UNIFORM_LOC(out_loc, shader, name)                     \
+    int out_loc = glGetUniformLocation(shader->program, name);      \
+    if(out_loc == -1)                                               \
+    {                                                               \
+        /*nb_warn("Could not set uniform (%s)\n",name);*/               \
+        return GFX_FAILURE;                                         \
+    }                                                               \
+
+
+//TODO ADD MULTI DIMEN?
+//gfx_status    gfx_set_uniform_i32(gfx_shader * shader, const char * name, u32 count, i32 * value)
+//{
+//    _GET_UNIFORM_LOC(location, shader, name)
+//    glUniform1iv(location, count, value); 
+//    return GFX_SUCCESS;
+//}
+//
+//gfx_status    gfx_set_uniform_float(gfx_shader * shader, const char * name, u32 count, float * value)
+//{
+//    _GET_UNIFORM_LOC(location, shader, name)
+//    glUniform1fv(location, count, value); 
+//    return GFX_SUCCESS;
+//}
+
+gfx_status    gfx_set_uniform(gfx_shader * shader, const char * name, float  value)
 {
-    int location = glGetUniformLocation(shader->program, name);
-    if(location == -1) 
-    {
-        nb_error("Could not set uniform (%s)",name);
-        return GFX_FAILURE;
-    }   
+    _GET_UNIFORM_LOC(location, shader, name)
     glUniform1f(location, value); 
     return GFX_SUCCESS;
 }
 
-
+gfx_status  gfx_set_uniform_vec2f(gfx_shader * shader, const char * name, const vec2f * value)
+{
+    _GET_UNIFORM_LOC(location, shader, name)
+   // nb_warn("<%f, %f>",value->x,value->y);
+    glUniform2f(location, value->x,value->y); 
+    return GFX_SUCCESS;
+}
+gfx_status  gfx_set_uniform_vec2i(gfx_shader * shader, const char * name, const vec2i * value)
+{
+    _GET_UNIFORM_LOC(location, shader, name)
+    glUniform2i(location, value->x,value->y); 
+    return GFX_SUCCESS;
+}
 
 gfx_status gfx_init_mesh(gfx_mesh * mesh, gfx_shader * shader, gfx_vertex *  verts, int num_verts)
 {
-    int comp_size = sizeof(gfx_vertex);
-    int stride = 4*sizeof(float);
+    int stride = sizeof(gfx_vertex);
     int size = sizeof(gfx_vertex)*num_verts;        
 
     mesh->verts = verts;
@@ -207,10 +297,10 @@ gfx_status gfx_init_mesh(gfx_mesh * mesh, gfx_shader * shader, gfx_vertex *  ver
     glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
     glBufferData(GL_ARRAY_BUFFER, size, verts, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(shader->pos_loc, 2, GL_FLOAT, GL_FALSE, stride, 0);
-    glEnableVertexAttribArray(shader->pos_loc);//enable to draw
+    glVertexAttribPointer(shader->vert_loc, 2, GL_FLOAT, GL_FALSE, stride, 0);
+    glEnableVertexAttribArray(shader->vert_loc);//enable to draw
     
-    glVertexAttribPointer(shader->uv_loc, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(gfx_vertex, uv));
+    glVertexAttribPointer(shader->uv_loc, 2, GL_UNSIGNED_BYTE, GL_FALSE, stride, (void*)offsetof(gfx_vertex, uv));
     glEnableVertexAttribArray(shader->uv_loc);//enable to draw
     glUseProgram(0); //Attaching shaders
 
@@ -219,11 +309,11 @@ gfx_status gfx_init_mesh(gfx_mesh * mesh, gfx_shader * shader, gfx_vertex *  ver
 
 void gfx_destroy_mesh(gfx_mesh * mesh)
 {
-    glUseProgram(mesh->shader->program); //Attaching shaders
+    gfx_bind_shader(mesh->shader);
     glDeleteVertexArrays(1, &mesh->vao);
     glDeleteBuffers(1, &mesh->vbo);
     mesh->verts=0;
-
+    
 }
 void gfx_render_mesh(gfx_mesh * mesh)
 {
@@ -307,29 +397,27 @@ void gfx_update_texture(gfx_texture * texture, int x, int y, int width, int heig
 }
 
 
-gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, int x, int y, int w, int h)
+gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, float x, float y, float w, float h)
 {
  
     gfx_vertex * verts = nb_malloc(6*sizeof(gfx_vertex));
-    //tri 1
-    
-    verts[0].pos[0] =x;    verts[0].pos[1] =y;
-    verts[0].uv[0]  =0;    verts[0].uv[1]  =0;
+    const float xw = x+w;
+    const float yh = y+h;
+    rect->pos.x = x;       rect->pos.y =  y;
+    rect->size.x= w;       rect->size.y=  h;
+    verts[0].pos.x =0;     verts[0].pos.y =0;
+    verts[1].pos.x =0;     verts[1].pos.y =1;
+    verts[2].pos.x =1;     verts[2].pos.y =1;
+    verts[3].pos.x =0;     verts[3].pos.y =0;
+    verts[4].pos.x =1;     verts[4].pos.y =0;
+    verts[5].pos.x =1;     verts[5].pos.y =1;
 
-    verts[1].pos[0] =x;    verts[1].pos[1] =y+h;
-    verts[1].uv[0]  =0;    verts[1].uv[1]  =1;
-
-    verts[2].pos[0] =x+w;  verts[2].pos[1] =y+h;
-    verts[2].uv[0]  =1;    verts[2].uv[1]  =1;
-    //tri 2    
-    verts[3].pos[0] =x;    verts[3].pos[1] =y;
-    verts[3].uv[0]  =0;    verts[3].uv[1]  =0;
-
-    verts[4].pos[0] =x+w;  verts[4].pos[1] =y;
-    verts[4].uv[0]  =1;    verts[4].uv[1]  =0;
-
-    verts[5].pos[0] =x+w;  verts[5].pos[1] =y+h;
-    verts[5].uv[0]  =1;    verts[5].uv[1]  =1;
+    verts[0].uv.x  =0;     verts[0].uv.y  =0;
+    verts[1].uv.x  =0;     verts[1].uv.y  =1;
+    verts[2].uv.x  =1;     verts[2].uv.y  =1;
+    verts[3].uv.x  =0;     verts[3].uv.y  =0;
+    verts[4].uv.x  =1;     verts[4].uv.y  =0;
+    verts[5].uv.x  =1;     verts[5].uv.y  =1;
     
     rect->mesh.verts = verts;
     return gfx_init_mesh(&rect->mesh, shader, rect->mesh.verts, 6);
@@ -343,5 +431,11 @@ void  gfx_destroy_rect(gfx_rect * rect)
 }
 void  gfx_render_rect(gfx_rect * rect)
 {
+    //gfx_set_uniform_vec2i(_active_shader, GFX_UNIFORM_SIZE, rect->size);
+    //gfx_set_uniform_vec2i(_active_shader, GFX_UNIFORM_POS, rect->pos);
+    gfx_set_uniform_vec2f(rect->mesh.shader, GFX_UNIFORM_SIZE, &rect->size);
+    gfx_set_uniform_vec2f(rect->mesh.shader, GFX_UNIFORM_POS,  &rect->pos);
     gfx_render_mesh(&rect->mesh);   
 }
+
+

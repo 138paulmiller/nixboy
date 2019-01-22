@@ -7,7 +7,7 @@ COMPILE=$(CC) $(SRC) -o $(BUILD_DIR)/$(OUT) $(LIBS)
 
 all: $(BUILD_DIR)
 	$(COMPILE) 
-	@echo "Success"  
+	@echo "Build Success"  
 
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
