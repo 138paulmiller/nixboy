@@ -39,10 +39,9 @@ x -----------------------------------End Bankable Memory
 	* 4 bit 256x256 tile indexes
 	* Sprite Modes 
 	* Each tile/sprite is a rectangular collection of indices, either
-		1. Default 8x8
-		2. Small 4x4
-		3. Tall 8x16
-		4. Wide 18x8
+		1. Regular 8x8
+		2. Tall 8x16
+		4. Wide 16x8
 - Sprite Map
 	* Defines any possible sprites rendered. Foreground tiles of varying size
 		- Drawn in order, lowest address to highest
@@ -59,6 +58,12 @@ x -----------------------------------End Bankable Memory
 			Sprite Sheet is 
 		T  : Sprite Type : Defined sizes above
 		F  : 1 If Flipped, 0 if not
+
+-------
+2 Shaders
+	Tile Sheet Shader
+	Sprite Shader
+
 */
 
 //Len is number of units. Size is number of bytes

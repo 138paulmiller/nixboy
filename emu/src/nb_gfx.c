@@ -9,6 +9,7 @@ static SDL_Window*     _sdl_window;
 static SDL_Event*      _sdl_event;
 static SDL_GLContext   _sdl_gfx_context;
 static gfx_shader *     _active_shader;  //create a shader stack to push and pop?
+static gfx_sheet *     _active_sheet;  //create a shader stack to push and pop?
 static gfx_timer        _fps_timer;  //create a shader stack to push and pop?
 
 //Frames per Sec, Frames Per MilliSec
@@ -92,6 +93,9 @@ static  gfx_status _create_shader_stage(uint type, const char* source)
         nb_error("GLEW Failed to initialize %d", status);
         return GFX_FAILURE; 
     }   
+
+    _active_shader = 0;
+    _active_sheet = 0;
     gfx_timer_init(&_fps_timer);
     return GFX_SUCCESS;
 
@@ -228,10 +232,15 @@ void    gfx_destroy_shader(gfx_shader * shader)
 
 }
 
+//bind only if not already bound
 void    gfx_bind_shader(gfx_shader * shader)
 {
-    _active_shader = shader;
-    glUseProgram(shader->program); //Attaching shaders
+    if(_active_shader != shader)
+    {
+        _active_shader = shader;
+        glUseProgram(shader->program); //Attaching shaders    
+    }
+    
 }
 
 #define _GET_UNIFORM_LOC(out_loc, shader, name)                     \
@@ -287,7 +296,8 @@ gfx_status gfx_init_mesh(gfx_mesh * mesh, gfx_shader * shader, gfx_vertex *  ver
     mesh->verts = verts;
     mesh->num_verts = num_verts;
     mesh->shader = shader;
-    glUseProgram(shader->program); //Attaching shaders
+    
+    gfx_bind_shader(shader); //Attaching shaders
 
     glGenVertexArrays(1, &mesh->vao);
     glBindVertexArray(mesh->vao);
@@ -302,8 +312,7 @@ gfx_status gfx_init_mesh(gfx_mesh * mesh, gfx_shader * shader, gfx_vertex *  ver
     
     glVertexAttribPointer(shader->uv_loc, 2, GL_UNSIGNED_BYTE, GL_FALSE, stride, (void*)offsetof(gfx_vertex, uv));
     glEnableVertexAttribArray(shader->uv_loc);//enable to draw
-    glUseProgram(0); //Attaching shaders
-
+    
     return GFX_SUCCESS;
 }
 
@@ -371,8 +380,8 @@ gfx_status  gfx_init_texture(gfx_texture * texture, gfx_texture_type type, gfx_f
     }
     glGenTextures(1, &texture->handle);
     glBindTexture(texture->type, texture->handle);
-    glTexParameteri(texture->type, GL_TEXTURE_WRAP_S,   GL_CLAMP_TO_BORDER);
-    glTexParameteri(texture->type, GL_TEXTURE_WRAP_T,   GL_CLAMP_TO_BORDER);
+    glTexParameteri(texture->type, GL_TEXTURE_WRAP_S,   GL_REPEAT);
+    glTexParameteri(texture->type, GL_TEXTURE_WRAP_T,   GL_REPEAT);
     glTexParameteri(texture->type, GL_TEXTURE_MIN_FILTER,   GL_NEAREST);
     glTexParameteri(texture->type, GL_TEXTURE_MAG_FILTER,   GL_NEAREST);
     
@@ -431,11 +440,86 @@ void  gfx_destroy_rect(gfx_rect * rect)
 }
 void  gfx_render_rect(gfx_rect * rect)
 {
-    //gfx_set_uniform_vec2i(_active_shader, GFX_UNIFORM_SIZE, rect->size);
-    //gfx_set_uniform_vec2i(_active_shader, GFX_UNIFORM_POS, rect->pos);
+    //Update uniforms only if dirty?
     gfx_set_uniform_vec2f(rect->mesh.shader, GFX_UNIFORM_SIZE, &rect->size);
     gfx_set_uniform_vec2f(rect->mesh.shader, GFX_UNIFORM_POS,  &rect->pos);
     gfx_render_mesh(&rect->mesh);   
 }
 
 
+gfx_status  gfx_init_sprite(gfx_sprite * sprite, gfx_sheet * sheet, gfx_shader * shader, vec2i offset, gfx_sprite_type type)
+{
+    int width, height;
+    switch(type)
+    {
+        //Regular 8x8
+        case GFX_SPRITE_REGULAR:
+            width  = 8;
+            height = 8;
+        break;
+        //Tall 8x16    
+        case GFX_SPRITE_WIDE:
+            width  = 8;
+            height = 16;
+        break;
+         //Wide 16x8
+        case GFX_SPRITE_TALL:
+            width  = 16;
+            height = 8;
+        break;
+    }
+
+//TODO type to determine 
+    gfx_status  status = gfx_init_rect(&sprite->rect, shader, 0, 0, width, height);
+    if(status == GFX_FAILURE)
+    {
+        return GFX_FAILURE;
+    }
+
+    sprite->sheet = sheet;
+    sprite->offset = offset;
+    sprite->flip_x = sprite->flip_y = 0; 
+}
+
+void        gfx_destroy_sprite(gfx_sprite * sprite)
+{
+    gfx_destroy_rect(&sprite->rect);
+}
+
+void        gfx_render_sprite(gfx_sprite * sprite)
+{
+    gfx_use_sheet(sprite->sheet);
+    gfx_render_rect(&sprite->rect);
+}
+
+
+void        gfx_get_sprite_xy(gfx_sprite * sprite, float * x, float * y )
+{
+    *x = sprite->rect.pos.x;
+    *y = sprite->rect.pos.y;
+}
+
+void        gfx_set_sprite_xy(gfx_sprite * sprite, float  x, float  y )
+{
+    sprite->rect.pos.x = x;
+    sprite->rect.pos.y = y;
+}
+
+void        gfx_flip_sprite(gfx_sprite * sprite, bool flip_x, bool flip_y )
+{
+    sprite->flip_x = flip_x;
+    sprite->flip_y = flip_y;   
+}
+
+void        gfx_use_sheet(gfx_sheet * sheet)
+{
+
+ //   if( _active_sheet != sheet)
+    {
+
+        gfx_bind_texture(sheet->palette);
+       // gfx_bind_texture(sheet->atlas);
+        _active_sheet = sheet;
+    }
+
+}
