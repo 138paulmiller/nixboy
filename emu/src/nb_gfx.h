@@ -4,15 +4,22 @@
 Tile Renderer
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include "nb_gc.h"
-
+#include "nb_types.h"
 //Expected defs
-#define GFX_ATTRIB_VERT      "in_vert"
-#define GFX_ATTRIB_UV        "in_uv"
-#define GFX_UNIFORM_POS      "pos"
-#define GFX_UNIFORM_SIZE     "size"
+#define GFX_ATTRIB_VERT         "in_vert"
+#define GFX_ATTRIB_UV           "in_uv"
+#define GFX_UNIFORM_POS         "pos"
+#define GFX_UNIFORM_SIZE        "size"
+#define GFX_UNIFORM_RESOLUTION  "resolution"
+#define GFX_UNIFORM_ATLAS       "atlas"
+#define GFX_UNIFORM_PALETTE     "palette"
+//atlas offset for sprites/tiles 
+#define GFX_UNIFORM_OFFSET     "offset"
+#define GFX_UNIFORM_PALETTE_SIZE "palette_size"
+#define GFX_UNIFORM_COLOR_DEPTH "color_depth"
+
+#define GFX_PALETTE_TEXTURE_UNIT    0
+#define GFX_ATLAS_TEXTURE_UNIT      1
 
 typedef enum gfx_status
 {
@@ -32,7 +39,7 @@ typedef enum gfx_format
 typedef enum gfx_texture_type
 {
     GFX_TEXTURE_1D,
-    GFX_TEXTURE_2D 
+    GFX_TEXTURE_2D  
 } gfx_texture_type;
 
 typedef enum gfx_sprite_type
@@ -89,11 +96,26 @@ typedef struct gfx_rect
 } gfx_rect;
 
 
+typedef struct gfx_palette
+{
+    rgb * data;           //nonowning ptr
+    gfx_texture texture;    //atlas sheet (palette indices)
+} gfx_palette;
+
+
+typedef struct gfx_atlas
+{       
+    byte * indices;         //nonowning ptr
+    gfx_texture texture;    //atlas sheet (palette indices)
+} gfx_atlas;
+
+
 //A Sheet representa a texture whose indices map to palette colors
 typedef struct gfx_sheet
 {
-    gfx_texture * palette;
-    gfx_texture * atlas;    //atlas sheet (palette indices)
+    gfx_palette * palette;
+    gfx_atlas * atlas;    //atlas sheet (palette indices)
+
 } gfx_sheet;
 
 typedef struct gfx_tilemap
@@ -147,7 +169,8 @@ void        gfx_timer_tick(gfx_timer * timer);   //elapsed time while paused or 
 gfx_status  gfx_init_shader(gfx_shader * shader, const char * vertex_source, const char * fragment_source);
 void        gfx_destroy_shader(gfx_shader * shader);
 void        gfx_bind_shader(gfx_shader * shader);
-gfx_status  gfx_set_uniform(gfx_shader * shader, const char * name, float value);
+gfx_status  gfx_set_uniform_float(gfx_shader * shader, const char * name, float value);
+gfx_status  gfx_set_uniform_int(gfx_shader * shader, const char * name, int value);
 gfx_status  gfx_set_uniform_vec2i(gfx_shader * shader, const char * name, const vec2i * value);
 gfx_status  gfx_set_uniform_vec2f(gfx_shader * shader, const char * name, const vec2f * value);
 
@@ -157,14 +180,31 @@ void        gfx_destroy_mesh(gfx_mesh * mesh);
 void        gfx_render_mesh(gfx_mesh * mesh);
 
 // --------- GFX Texture ----- 
-gfx_status  gfx_init_texture(gfx_texture * texture, gfx_texture_type type, gfx_format format, byte  * data, int width, int height);
-void        gfx_bind_texture(gfx_texture * texture );
-void        gfx_update_texture(gfx_texture * texture, int x, int y, int width, int height);
+gfx_status  gfx_init_texture(u32 texture_location, gfx_texture * texture, gfx_texture_type type, gfx_format data_format, byte  * data, int width, int height);
+void        gfx_bind_texture(u32 texture_location, gfx_texture * texture);
+void        gfx_update_texture(u32 texture_location, gfx_texture * texture, int x, int y, int width, int height);
 
 // --------- GFX Rect ----- 
 gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, float x, float y, float w, float h);
 void        gfx_destroy_rect(gfx_rect * rect);
 void        gfx_render_rect(gfx_rect * rect);
+
+// ------------ GFX Palette -----------------------
+void        gfx_init_palette(gfx_palette *palette, rgb * data,u32 width, u32 height);
+void        gfx_destroy_palette(gfx_palette *palette);
+void        gfx_update_palette(gfx_palette *palette); //if data changes
+void        gfx_use_palette(gfx_palette *palette );
+
+// ------------ GFX atlas -----------------------
+void        gfx_init_atlas(gfx_atlas * atlas, byte * indices,u32 width, u32 height);
+void        gfx_destroy_atlas(gfx_atlas * atlas);
+void        gfx_update_atlas(gfx_atlas *atlas); //if indices change
+void        gfx_use_atlas(gfx_atlas * atlas);
+
+// ------------ GFX Sheet -----------------------
+void        gfx_init_sheet(gfx_sheet * sheet, gfx_palette * palette, gfx_atlas * atlas);
+void        gfx_destroy_sheet(gfx_sheet * sheet);
+void        gfx_use_sheet(gfx_sheet * sheet);
 
 // --------- GFX Sprite  ----- 
 gfx_status  gfx_init_sprite(gfx_sprite * sprite, gfx_sheet * sheet, gfx_shader * shader, vec2i offset, gfx_sprite_type type);
@@ -173,9 +213,6 @@ void        gfx_render_sprite(gfx_sprite * rect);
 void        gfx_get_sprite_xy(gfx_sprite * sprite, float * x, float * y );
 void        gfx_set_sprite_xy(gfx_sprite * sprite, float  x, float  y );
 void        gfx_flip_sprite(gfx_sprite * sprite, bool x_flip, bool y_flip );
-
-// ------------ GFX Sheet -----------------------
-void        gfx_use_sheet(gfx_sheet * sheet);
 
 
 #endif

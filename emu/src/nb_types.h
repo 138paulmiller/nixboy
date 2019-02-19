@@ -3,6 +3,7 @@
 /*
 	Primitive type defintions 
 */
+#include <stdio.h>
 #include <stdint.h>
 
 
@@ -13,14 +14,14 @@ typedef uint32_t	u32;
 typedef int16_t		i16;
 typedef int32_t		i32;
 
-typedef struct color
+typedef struct rgb
 {
     union
     {
-        struct {byte  r,g,b,a;};
-        byte      data[4];
+        struct {byte  r,g,b;};
+        byte      data[3];
     };        
-}color;
+}rgb;
 
 typedef struct vec2b
 {

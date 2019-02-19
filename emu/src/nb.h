@@ -9,11 +9,11 @@ x -----------------------------------Begin Bankable Memory
 |---- | ---------------|-------|
 |     | Palette        | 768   |
 |---- | ---------------|-------|
-|     | Tile Sheet     | 512   | 
+|     | Tile Atlas     | 512   | 
 |---- | ---------------|-------|
 |     | Tile Map       | ????  | 
 |---- | ---------------|-------|
-|     | Sprite Sheet   | ????  | 
+|     | Sprite Atlas   | ????  | 
 |---- | ---------------|-------|
 |     | Sprite Map     | ????  |
 x -----------------------------------End Bankable Memory
@@ -28,20 +28,20 @@ x -----------------------------------End Bankable Memory
 - Palette
 	* 16, 32-bit color values
 	* Bits per component R8G8B8A8
-- Tile Sheet 
+- Tile Atlas 
 	* 256 x 256  4 bit color indices. Each byte indexes the color palette
 	* Represents a texture atlas, composed of 8x8 tiles, allowing for 64 tiles in memory.
 - Tile Map
 	*  8 bit 256 x 256 tile indexes
 	*	Defines Level
 		- Level pixel size = 256*8 = 2048 x 2048
--Sprite sheet
+-Sprite Atlas
 	* 4 bit 256x256 tile indexes
 	* Sprite Modes 
 	* Each tile/sprite is a rectangular collection of indices, either
-		1. Regular 8x8
-		2. Tall 8x16
-		4. Wide 16x8
+		1. Regular 16x16
+		2. Tall 16x32
+		3. Wide 32x16
 - Sprite Map
 	* Defines any possible sprites rendered. Foreground tiles of varying size
 		- Drawn in order, lowest address to highest
@@ -71,12 +71,16 @@ x -----------------------------------End Bankable Memory
 #ifndef NIXBOY_H
 #define NIXBOY_H
 
+#include "nb_fs.h"
+#include "nb_gc.h"
 #include "nb_gfx.h"
 #include <math.h>
 
 //Change to constants? Create static struct of constants  
-#define NB_COLOR_DEPTH		  	24		//Size of each component
-#define NB_PALETTE_SIZE  		16		//Number of colors
+#define NB_PALETTE_SIZE  		32		//Number of colors
+#define NB_ATLAS_SIZE  			65536	//Number of colors
+#define NB_SPRITE_SIZE  		16		//width and height of regular sprite, wide and tall double with and height respectively
+#define NB_COLOR_DEPTH			255
 #define NB_SCREEN_WIDTH  		240  
 #define NB_SCREEN_HEIGHT 		160 
 #define NB_TITLE 				"nixboy"
@@ -102,22 +106,6 @@ typedef enum nb_tile_mode
 {
 	INVALID=-1, DEFAULT, SMALL, TALL, WIDE    
 }	nb_tile_mode;
-
-//Used for rendering. Used to bind to the opengl
-typedef struct nb_palette
-{
-	color * data;  // 256 24 bit  Color values     
-	gfx_texture texture;
-	int width, height;		
-}	nb_palette;
-
-
-typedef struct nb_sheet
-{
-	byte * data;  // 256 24 bit  Color values     
-	gfx_texture texture;
-	int width, height;	
-}	nb_sheet;
 
 
 //Draw mode - Per pixel. Raw Set pixel functionality

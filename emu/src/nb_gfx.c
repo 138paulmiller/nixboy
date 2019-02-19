@@ -1,6 +1,10 @@
 #include "nb_gfx.h"
+#include "nb_gc.h"
+#include "nb.h"
 
-//
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 
@@ -45,7 +49,7 @@ static gfx_status _check_shader_error(int shader, int  flag, int is_program)
         else{
             glGetShaderInfoLog(shader, error_len, &error_len, error_msg);
         }
-        printf("\nShader Log: %d %s \n", error_len, error_msg);
+        printf("\nShader Log: %s \n", error_msg);
         nb_free( error_msg);
         return GFX_FAILURE;
     }
@@ -204,10 +208,7 @@ void gfx_timer_tick(gfx_timer * timer)
     if(_check_shader_error(shader->program, GL_LINK_STATUS, 1)== GFX_FAILURE){
         return GFX_FAILURE;
     }
-    glValidateProgram(shader->program);
-    if(_check_shader_error(shader->program, GL_VALIDATE_STATUS, 1) == GFX_FAILURE){
-        return GFX_FAILURE;
-    }
+
     
     shader->vert_loc = glGetAttribLocation(shader->program, GFX_ATTRIB_VERT);
     shader->uv_loc = glGetAttribLocation(shader->program, GFX_ATTRIB_UV);
@@ -221,6 +222,8 @@ void gfx_timer_tick(gfx_timer * timer)
         nb_error("GFX Invalid name for UV Attrib: Expected %s", GFX_ATTRIB_UV);
         return GFX_FAILURE;
     }
+
+
     return GFX_SUCCESS;
 
 }
@@ -238,6 +241,13 @@ void    gfx_bind_shader(gfx_shader * shader)
     if(_active_shader != shader)
     {
         _active_shader = shader;
+    #ifdef DEBUG
+        glValidateProgram(shader->program);
+        if(_check_shader_error(shader->program, GL_VALIDATE_STATUS, 1) == GFX_FAILURE){
+            return ;
+        }
+    #endif
+
         glUseProgram(shader->program); //Attaching shaders    
     }
     
@@ -247,37 +257,28 @@ void    gfx_bind_shader(gfx_shader * shader)
     int out_loc = glGetUniformLocation(shader->program, name);      \
     if(out_loc == -1)                                               \
     {                                                               \
-        /*nb_warn("Could not set uniform (%s)\n",name);*/               \
+        nb_warn("Could not set uniform (%s)\n",name);               \
         return GFX_FAILURE;                                         \
     }                                                               \
 
 
-//TODO ADD MULTI DIMEN?
-//gfx_status    gfx_set_uniform_i32(gfx_shader * shader, const char * name, u32 count, i32 * value)
-//{
-//    _GET_UNIFORM_LOC(location, shader, name)
-//    glUniform1iv(location, count, value); 
-//    return GFX_SUCCESS;
-//}
-//
-//gfx_status    gfx_set_uniform_float(gfx_shader * shader, const char * name, u32 count, float * value)
-//{
-//    _GET_UNIFORM_LOC(location, shader, name)
-//    glUniform1fv(location, count, value); 
-//    return GFX_SUCCESS;
-//}
 
-gfx_status    gfx_set_uniform(gfx_shader * shader, const char * name, float  value)
+gfx_status  gfx_set_uniform_float(gfx_shader * shader, const char * name, float value)
 {
     _GET_UNIFORM_LOC(location, shader, name)
     glUniform1f(location, value); 
+    return GFX_SUCCESS;
+}
+gfx_status  gfx_set_uniform_int(gfx_shader * shader, const char * name, int value)
+{
+    _GET_UNIFORM_LOC(location, shader, name)
+    glUniform1i(location, value); 
     return GFX_SUCCESS;
 }
 
 gfx_status  gfx_set_uniform_vec2f(gfx_shader * shader, const char * name, const vec2f * value)
 {
     _GET_UNIFORM_LOC(location, shader, name)
-   // nb_warn("<%f, %f>",value->x,value->y);
     glUniform2f(location, value->x,value->y); 
     return GFX_SUCCESS;
 }
@@ -333,18 +334,46 @@ void gfx_render_mesh(gfx_mesh * mesh)
 
 }
 
-
-void gfx_bind_texture(gfx_texture * texture)
+// ----------------------------------------------------- Texture ---------------------------------------------------
+void gfx_bind_texture(u32 texture_location, gfx_texture * texture)
 {
+    u32 tex_unit = GL_TEXTURE0+texture_location;
+    glActiveTexture(tex_unit);
     glBindTexture(texture->type, texture->handle);
 }
 
 
-gfx_status  gfx_init_texture(gfx_texture * texture, gfx_texture_type type, gfx_format format, byte  * data, int width, int height)
+gfx_status  gfx_init_texture(u32 texture_location, gfx_texture * texture, gfx_texture_type type, gfx_format data_format, byte  * data, int width, int height)
 { 
     texture->width = width;
     texture->height = height;
     texture->data = data;
+
+    i32 format, internal_format; 
+    texture->format = data_format;
+    switch(data_format)
+    {
+        case GFX_RGBA8: 
+            format          = GL_RGBA_INTEGER;  
+            internal_format = GL_RGBA8UI;  
+        break;
+        case GFX_RGB8: 
+            format          = GL_RGB_INTEGER;  
+            internal_format = GL_RGB8UI;  
+        break;
+        case GFX_RG8: 
+            format          = GL_RG_INTEGER;
+            internal_format = GL_RG8UI;
+        break;
+        case GFX_R8: 
+            format          = GL_RED_INTEGER;
+            internal_format = GL_R8UI;
+        break;
+        default:
+            nb_error("GFX: load texture : invalid in format  (%d)",data_format);
+            return GFX_FAILURE;
+        break;
+    }
 
     switch(type)
     {
@@ -355,57 +384,57 @@ gfx_status  gfx_init_texture(gfx_texture * texture, gfx_texture_type type, gfx_f
             texture->type = GL_TEXTURE_2D;  
         break;
         default:
-            nb_error("GFX: load texture : invalid format value (%d)",format);
+            nb_error("GFX: load texture : invalid value (%d)",type);
             return GFX_FAILURE;
         break;
     }
-    switch(format)
-    {
-        case GFX_RGBA8: 
-            texture->format = GL_RGBA;  
-        break;
-        case GFX_RGB8: 
-            texture->format = GL_RGB;  
-        break;
-        case GFX_RG8: 
-            texture->format = GL_RG;
-        break;
-        case GFX_R8: 
-            texture->format = GL_RED;
-        break;
-        default:
-            nb_error("GFX: load texture : invalid format type (%d)",type);
-            return GFX_FAILURE;
-        break;
-    }
+
     glGenTextures(1, &texture->handle);
     glBindTexture(texture->type, texture->handle);
+
+    //gfx_bind_texture(texture_location, texture);
+    
     glTexParameteri(texture->type, GL_TEXTURE_WRAP_S,   GL_REPEAT);
     glTexParameteri(texture->type, GL_TEXTURE_WRAP_T,   GL_REPEAT);
     glTexParameteri(texture->type, GL_TEXTURE_MIN_FILTER,   GL_NEAREST);
     glTexParameteri(texture->type, GL_TEXTURE_MAG_FILTER,   GL_NEAREST);
-    
-    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-    glTexImage2D(texture->type, 0, GL_RGBA8, width, height, 0, texture->format, GL_UNSIGNED_BYTE, data);
 
-    float border_color[] = { 1.0, 1.0, 1.0 };
-    glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
+
+    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+
+    switch(type)
+    {
+        case  GFX_TEXTURE_1D: 
+            glTexImage1D(texture->type, 0, internal_format, width, 0, format, GL_UNSIGNED_BYTE, data);
+        break;
+        case GFX_TEXTURE_2D: 
+            glTexImage2D(texture->type, 0, internal_format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        break;
+        default:
+            nb_error("GFX: load texture : invalid texture type(%d)",type);
+            return GFX_FAILURE;
+        break;
+    }
+
+    
+    //float border_color[] = { 1.0, 1.0, 1.0 };
+    //glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
  
-    glBindTexture(texture->type, 0); //unbind
     return GFX_SUCCESS;
 }
 
-void gfx_update_texture(gfx_texture * texture, int x, int y, int width, int height)
+void gfx_update_texture(u32 texture_location, gfx_texture * texture, int x, int y, int width, int height)
 {
-    glBindTexture(texture->type, texture->handle);
+
+    gfx_bind_texture(texture_location, texture);
     glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
     glTexSubImage2D(texture->type, 0,x,y,width,height,texture->format, GL_UNSIGNED_BYTE, texture->data);
-    float border_color[] = { 1.0, 1.0, 1.0 };
-    glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
-    glBindTexture(texture->type, 0);
+    //float border_color[] = { 1.0, 1.0, 1.0 };
+    //glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
+
 }
 
-
+// ------------------------------------- Rect -------------------------------------------
 gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, float x, float y, float w, float h)
 {
  
@@ -435,7 +464,7 @@ gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, float x, float y
 
 void  gfx_destroy_rect(gfx_rect * rect)
 {
-    free(rect->mesh.verts);
+    nb_free(rect->mesh.verts);
     gfx_destroy_mesh(&rect->mesh);
 }
 void  gfx_render_rect(gfx_rect * rect)
@@ -446,6 +475,97 @@ void  gfx_render_rect(gfx_rect * rect)
     gfx_render_mesh(&rect->mesh);   
 }
 
+// ------------ GFX Palette -----------------------
+
+void        gfx_init_palette(gfx_palette *palette, rgb * data, u32 width, u32 height)
+{
+
+    gfx_status status = gfx_init_texture(    
+                            GFX_PALETTE_TEXTURE_UNIT,
+                            &palette->texture, 
+                            GFX_TEXTURE_1D,
+                            GFX_RGB8,
+                            &data->data[0],
+                            width, height);
+    if(status == GFX_FAILURE)
+    {
+        nb_error("Failed to init palette texture");
+        return;
+    } 
+    palette->data = data;
+
+}
+void        gfx_use_palette(gfx_palette *palette )
+{
+    gfx_bind_texture(GFX_PALETTE_TEXTURE_UNIT, &(palette->texture));
+}
+
+void        gfx_update_palette(gfx_palette *palette)
+{
+    gfx_update_texture( GFX_PALETTE_TEXTURE_UNIT, &palette->texture,0,0, palette->texture.width, palette->texture.height);
+}
+//if data changes
+
+void        gfx_destroy_palette(gfx_palette * palette)
+{
+    palette->data=0;
+}
+
+
+// ------------ GFX atlas -----------------------
+
+void        gfx_init_atlas(gfx_atlas * atlas, byte * indices, u32 width, u32 height)
+{
+
+    gfx_status status = gfx_init_texture(    
+                            GFX_ATLAS_TEXTURE_UNIT,
+                            &atlas->texture, 
+                            GFX_TEXTURE_2D, 
+                            GFX_R8,
+                            &indices[0],
+                            width, height);
+    if(status == GFX_FAILURE)
+    {
+        nb_error("Failed to init palette texture");
+        return;
+    } 
+    atlas->indices = indices;
+}
+
+void        gfx_destroy_atlas(gfx_atlas * atlas)
+{
+    atlas->indices =0 ;
+//    nb_free(atlas->indices);
+}
+
+void        gfx_update_atlas(gfx_atlas *atlas)
+{
+    gfx_update_texture( GFX_ATLAS_TEXTURE_UNIT, &atlas->texture,0,0, atlas->texture.width, atlas->texture.height); 
+}
+
+void        gfx_use_atlas(gfx_atlas * atlas)
+{
+    gfx_bind_texture(GFX_ATLAS_TEXTURE_UNIT, &(atlas->texture));
+}
+
+
+// ------------ GFX Sheet -----------------------
+void        gfx_use_sheet(gfx_sheet * sheet)
+{
+    
+    gfx_use_palette(sheet->palette);
+    gfx_use_atlas(sheet->atlas);
+    
+}
+
+void        gfx_init_sheet(gfx_sheet * sheet, gfx_palette * palette, gfx_atlas * atlas)
+{
+    sheet->atlas = atlas;
+    sheet->palette = palette;
+}
+
+
+//---------------------------------------------- Sprites --------------------------------------------------
 
 gfx_status  gfx_init_sprite(gfx_sprite * sprite, gfx_sheet * sheet, gfx_shader * shader, vec2i offset, gfx_sprite_type type)
 {
@@ -454,18 +574,18 @@ gfx_status  gfx_init_sprite(gfx_sprite * sprite, gfx_sheet * sheet, gfx_shader *
     {
         //Regular 8x8
         case GFX_SPRITE_REGULAR:
-            width  = 8;
-            height = 8;
+            width  = NB_SPRITE_SIZE;
+            height = NB_SPRITE_SIZE;
         break;
         //Tall 8x16    
         case GFX_SPRITE_WIDE:
-            width  = 8;
-            height = 16;
+            width  = NB_SPRITE_SIZE*2;
+            height = NB_SPRITE_SIZE;
         break;
          //Wide 16x8
         case GFX_SPRITE_TALL:
-            width  = 16;
-            height = 8;
+            width  = NB_SPRITE_SIZE;
+            height = NB_SPRITE_SIZE*2;
         break;
     }
 
@@ -489,6 +609,8 @@ void        gfx_destroy_sprite(gfx_sprite * sprite)
 void        gfx_render_sprite(gfx_sprite * sprite)
 {
     gfx_use_sheet(sprite->sheet);
+    //sprites reference sader
+    gfx_set_uniform_vec2i(sprite->rect.mesh.shader, GFX_UNIFORM_OFFSET, &sprite->offset);
     gfx_render_rect(&sprite->rect);
 }
 
@@ -509,17 +631,4 @@ void        gfx_flip_sprite(gfx_sprite * sprite, bool flip_x, bool flip_y )
 {
     sprite->flip_x = flip_x;
     sprite->flip_y = flip_y;   
-}
-
-void        gfx_use_sheet(gfx_sheet * sheet)
-{
-
- //   if( _active_sheet != sheet)
-    {
-
-        gfx_bind_texture(sheet->palette);
-       // gfx_bind_texture(sheet->atlas);
-        _active_sheet = sheet;
-    }
-
 }
