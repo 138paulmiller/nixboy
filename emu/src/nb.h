@@ -76,13 +76,16 @@ x -----------------------------------End Bankable Memory
 #include "nb_gfx.h"
 #include <math.h>
 
-//Change to constants? Create static struct of constants  
+
 #define NB_PALETTE_SIZE  		32		//Number of colors
-#define NB_ATLAS_SIZE  			65536	//Number of colors
-#define NB_SPRITE_SIZE  		16		//width and height of regular sprite, wide and tall double with and height respectively
+#define NB_SPRITE_ATLAS_SIZE  	64	// 64x64 sheet of indices
+#define NB_MAP_ATLAS_SIZE  		128	//Number of colors
+#define NB_SPRITE_SIZE  		8		//width and height of regular sprite, wide and tall double with and height respectively
 #define NB_COLOR_DEPTH			255
-#define NB_SCREEN_WIDTH  		240  
-#define NB_SCREEN_HEIGHT 		160 
+#define NB_SCREEN_WIDTH  		100  
+#define NB_SCREEN_HEIGHT 		60 
+
+#define NB_SCALE 				10 
 #define NB_TITLE 				"nixboy"
 
 

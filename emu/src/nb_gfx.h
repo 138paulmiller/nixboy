@@ -10,12 +10,14 @@ Tile Renderer
 #define GFX_ATTRIB_UV           "in_uv"
 #define GFX_UNIFORM_POS         "pos"
 #define GFX_UNIFORM_SIZE        "size"
+#define GFX_UNIFORM_SCALE       "scale"
 #define GFX_UNIFORM_RESOLUTION  "resolution"
 #define GFX_UNIFORM_ATLAS       "atlas"
 #define GFX_UNIFORM_PALETTE     "palette"
 //atlas offset for sprites/tiles 
 #define GFX_UNIFORM_OFFSET     "offset"
 #define GFX_UNIFORM_PALETTE_SIZE "palette_size"
+#define GFX_UNIFORM_SPRITE_ATLAS_SIZE "sprite_atlas_size"
 #define GFX_UNIFORM_COLOR_DEPTH "color_depth"
 
 #define GFX_PALETTE_TEXTURE_UNIT    0
