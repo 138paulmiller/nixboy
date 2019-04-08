@@ -14,3 +14,8 @@ sudo apt-get install mesa-utils  libglew-dev libsdl2-dev
 Overview
 	Ram Layout
 
+
+
+# TODO 
+	
+[] Rename gfx_ to nb_ 	

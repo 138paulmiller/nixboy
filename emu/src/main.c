@@ -1,144 +1,105 @@
-/*
-TODO	
-	- Create (Tracing) Mark-Sweep Garbage collection system.
-	Pointer struct
-	See http://libcello.org/learn/garbage-collection
-	- Create QuadTree for sprites. Use for rendering
-	- Create "Batched" Rendering for multi-sheet levels?
-	- Render targets. Deferred/Forward Rendering!
-*/
-/*
- 
 
 
-*/
+
+
+
 #include "nb.h"
 
-//
-
-
-
-void nb_draw_screen(nb_cpu * cpu){}
+#define DEFAULT_SPRITE_SIZE          8       //width and height of regular sprite, wide and tall double with and height respectively
+#define DEFAULT_PALETTE_SIZE         32      //Number of colors
+#define DEFAULT_SPRITE_ATLAS_WIDTH   64  // 64x64 sheet of indices
+#define DEFAULT_SPRITE_ATLAS_HEIGHT  DEFAULT_SPRITE_SIZE  // 64x64 sheet of indices
+#define DEFAULT_TILE_ATLAS_WIDTH     128  // 64x64 sheet of indices
+#define DEFAULT_TILE_ATLAS_HEIGHT    128  // 64x64 sheet of indices
+#define DEFAULT_SCREEN_WIDTH         100  
+#define DEFAULT_SCREEN_HEIGHT        60 
+#define DEFAULT_COLOR_DEPTH          255
+#define DEFAULT_SCALE                10 
+#define DEFAULT_TITLE                "nixboy"
+#define DEFAULT_MAX_SPRITE_COUNT    256
 
 
 
 
 int main(int argc, char ** argv)
 {
-    nb_cpu cpu;
-    vec2i resolution = { NB_SCREEN_WIDTH, NB_SCREEN_HEIGHT};
-    int width = NB_SCREEN_WIDTH, height = NB_SCREEN_HEIGHT;
-    int fps_cap = 200;
-    int scale =NB_SCALE;
-    
-
-    //parse cmd line args
-    gfx_init(NB_TITLE, width*scale , height*scale );
-    
-
-    //  ---------------------- Compile Sprite Shader ----------------------
-    gfx_shader sprite_shader;
-    //create file struct, intermittengly check last modified data, if changes then reload (hotload ) 
-    char *sprite_vert_source;
-    int sprite_vert_size;
-    char *sprite_frag_source;
-    int sprite_frag_size;
-
-
-    nb_fread("res/sprite.vert", &sprite_vert_source, &sprite_vert_size); 
-    nb_fread("res/sprite.frag", &sprite_frag_source, &sprite_frag_size);
-    
-    if(! sprite_vert_source)
-        nb_error("Failed to Read res/sprite.vert file")
-    
-    if(! sprite_frag_source)
-        nb_error("Failed to Read res/sprite.frag file")
-    
-
-    gfx_init_shader(&sprite_shader, sprite_vert_source, sprite_frag_source);
-
-    nb_free(sprite_vert_source);
-    nb_free(sprite_frag_source);
-
- 
-    // ---------------------- Setup Palettes -----------------------------
-
-    int i,j,x;
-
-
-    //for rendering
-    int palette_width = NB_PALETTE_SIZE;
-    int palette_height = 1;
-    rgb  palette_data[NB_PALETTE_SIZE] = {
-#include "default_palette.inl"
+    //should load  data from from cart
+    rgb  default_palette_colors[DEFAULT_PALETTE_SIZE] = {
+#include "grayscale_palette.inl"
+//#include "default_palette.inl"
     };
-    gfx_palette palette0;
-    gfx_init_palette(&palette0, &palette_data[0], palette_width, palette_height);
 
 
-    int atlas_height = NB_SPRITE_ATLAS_SIZE;
-    int atlas_width = NB_SPRITE_ATLAS_SIZE;
 
-    byte atlas_indices[NB_SPRITE_ATLAS_SIZE*NB_SPRITE_ATLAS_SIZE] = {
-#include "default_sprite_atlas.inl"
+    byte default_sprite_atlas_indices[ DEFAULT_SPRITE_ATLAS_WIDTH * DEFAULT_SPRITE_ATLAS_HEIGHT] = {
+#include "checkered_sprite_atlas.inl"
+//#include "default_sprite_atlas.inl"
     };
+    //
+    nb_settings settings = {
+        cartridge_filepath : "res/test.nbc" ,
+
+        .screen = {
+            title : DEFAULT_TITLE        ,
+            width : DEFAULT_SCREEN_WIDTH ,
+            height:DEFAULT_SCREEN_HEIGHT ,
+            scale :DEFAULT_SCALE
+        },    
+
+        .gfx= {
+
+            palette_size          : DEFAULT_PALETTE_SIZE         , 
+            sprite_atlas_width    : DEFAULT_SPRITE_ATLAS_WIDTH  ,
+            sprite_atlas_height   : DEFAULT_SPRITE_ATLAS_HEIGHT ,
+            tile_atlas_width      : DEFAULT_TILE_ATLAS_WIDTH    ,
+            tile_atlas_height     : DEFAULT_TILE_ATLAS_HEIGHT  ,
+            color_depth           : DEFAULT_COLOR_DEPTH          ,
+            max_sprite_count      : DEFAULT_MAX_SPRITE_COUNT
+        }
+    };
+
+
+    //parse command line options, modify settings
+    nb_debug("Starting nixboy\n");
+    nb_startup(&settings);
+
+
+    nb_debug("Initializing memory\n");
+    nb_set_palette(&default_palette_colors[0]);    
+    nb_set_sprite_atlas(&default_sprite_atlas_indices[0]);
+    //nb_set_tile_atlas(&default_tile_atlas_indices[0]);
+
+    
+    nb_debug("Creating sprites\n");
+    nb_sprite * sprite0, *sprite1;
+    sprite0 = nb_add_sprite(NB_SPRITE_REGULAR, 0);
+    //sprite1 = nb_add_sprite(NB_SPRITE_REGULAR, 1);
     
 
-    gfx_atlas sptite_atlas0;
-    gfx_init_atlas(&sptite_atlas0, &atlas_indices[0], atlas_width, atlas_height);
+    //returns if paused, continue.
+    nb_status status;
 
-
-    // Setup sheet
-    gfx_sheet sheet0;
-    gfx_init_sheet(&sheet0, &palette0, &sptite_atlas0);
-    
-
- 	//---------------------- init sprites --------------------------------
-
-    
-    vec2i offset = {0,0};
-    gfx_sprite sprite0;
-    gfx_init_sprite(&sprite0, &sheet0, &sprite_shader, offset, GFX_SPRITE_REGULAR);
-
-    //set the current palette to the cpu palette
-    cpu.palette = (byte*)palette_data;
 
     float offsetx, offsety;
-    gfx_cap_fps(fps_cap);
-    while(gfx_update())
-    {
-
-        //sprite0.offset.x ++;// (sprite0.offset.x++);
-        sprite0.offset.y ++;// (sprite0.offset.y++);
-
-            //sprite0.offset.x= sprite0.offset.x%(int)(sqrt(NB_ATLAS_SIZE));
-        
-//        gfx_set_sprite_xy(&sprite0, x, y);
- 		//---------------------- draw sprites --------------------------------
-        //only rebinds of not already bound
+    u32 fps_cap = 200;
+    nb_cap_fps(fps_cap);
 
 
-        gfx_bind_shader(&sprite_shader);
-       
-        gfx_use_sheet(&sheet0);
-
-        //set textures units indices        
-        gfx_set_uniform_int(&sprite_shader, GFX_UNIFORM_ATLAS,      GFX_ATLAS_TEXTURE_UNIT);
-        gfx_set_uniform_int(&sprite_shader, GFX_UNIFORM_PALETTE,    GFX_PALETTE_TEXTURE_UNIT);
-
-        gfx_set_uniform_vec2i(&sprite_shader, GFX_UNIFORM_RESOLUTION, &resolution);
-        gfx_set_uniform_int(&sprite_shader, GFX_UNIFORM_SCALE, scale);
-
-        gfx_set_uniform_int(&sprite_shader, GFX_UNIFORM_SPRITE_ATLAS_SIZE , NB_SPRITE_ATLAS_SIZE );
-
-        gfx_set_uniform_int(&sprite_shader, GFX_UNIFORM_PALETTE_SIZE , NB_PALETTE_SIZE );
-        gfx_set_uniform_int(&sprite_shader, GFX_UNIFORM_COLOR_DEPTH  , NB_COLOR_DEPTH);
-
-        gfx_render_sprite(&sprite0);
-  //      nb_log("FPS\t%.03f\n", gfx_fps());
+    nb_debug("Starting machine \n");
+    while( NB_CONTINUE ==  (status = nb_update() ) )
+    {   
+        u32 flags =0 ; 
+        set_flag(flags , NB_FLAG_SPRITE_ATLAS_DIRTY);
+        set_flag(flags , NB_FLAG_PALETTE_DIRTY);
+        if(nb_key(NB_q) != NB_KEYUP)
+        {
+            puts("asss");
+        }        
+            sprite0->offset.x +=1;            
+        nb_draw(  flags  );
     } 
-    gfx_destroy_palette(&palette0);
-    gfx_destroy_sprite(&sprite0); 
-    gfx_destroy(); 
+
+    nb_shutdown();
+
     return 0;
 }

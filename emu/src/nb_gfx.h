@@ -1,57 +1,146 @@
 #ifndef GFX
 #define GFX
 /*
-Tile Renderer
+gfx - nixboy grapics module
+
+Tile based sprite renderer
+
 */
 
-#include "nb_types.h"
+#include "nb_def.h"
+
 //Expected defs
-#define GFX_ATTRIB_VERT         "in_vert"
-#define GFX_ATTRIB_UV           "in_uv"
-#define GFX_UNIFORM_POS         "pos"
-#define GFX_UNIFORM_SIZE        "size"
-#define GFX_UNIFORM_SCALE       "scale"
-#define GFX_UNIFORM_RESOLUTION  "resolution"
-#define GFX_UNIFORM_ATLAS       "atlas"
-#define GFX_UNIFORM_PALETTE     "palette"
+#define NB_ATTRIB_VERT                 "in_vert"
+#define NB_ATTRIB_UV                   "in_uv"
+#define NB_UNIFORM_POS                 "pos"
+#define NB_UNIFORM_SIZE                "size"
+#define NB_UNIFORM_SCALE               "scale"
+#define NB_UNIFORM_SCREEN_RESOLUTION   "screen_resolution"
+#define NB_UNIFORM_ATLAS               "atlas"
+#define NB_UNIFORM_PALETTE             "palette"
 //atlas offset for sprites/tiles 
-#define GFX_UNIFORM_OFFSET     "offset"
-#define GFX_UNIFORM_PALETTE_SIZE "palette_size"
-#define GFX_UNIFORM_SPRITE_ATLAS_SIZE "sprite_atlas_size"
-#define GFX_UNIFORM_COLOR_DEPTH "color_depth"
+#define NB_UNIFORM_OFFSET              "offset"
+#define NB_UNIFORM_PALETTE_SIZE        "palette_size"
+#define NB_UNIFORM_ATLAS_RESOLUTION    "atlas_resolution"
+#define NB_UNIFORM_COLOR_DEPTH         "color_depth"
 
-#define GFX_PALETTE_TEXTURE_UNIT    0
-#define GFX_ATLAS_TEXTURE_UNIT      1
+#define NB_TEXTURE_UNIT_PALETTE     0
+#define NB_TEXTURE_UNIT_ATLAS      1
 
-typedef enum gfx_status
+typedef enum nb_key_mode
 {
-    GFX_FAILURE =0,
-    GFX_SUCCESS =1,
-    
-} gfx_status;
+    NB_KEYUP, 
+    NB_KEYDOWN,
+    NB_KEYHOLD, 
+}nb_key_mode;
 
-typedef enum gfx_format
+typedef enum keycode
 {
-    GFX_R8,
-    GFX_RG8,
-    GFX_RGB8,
-    GFX_RGBA8 
-} gfx_format;
 
-typedef enum gfx_texture_type
+NB_UNKNOWN     = 0 ,                   
+NB_BACKSPACE     ,                    
+NB_TAB           ,            
+NB_RETURN        ,                  
+NB_ESCAPE        ,                
+NB_SPACE         ,             
+NB_EXCLAIM       ,                 
+NB_QUOTEDBL      ,               
+NB_HASH          ,                 
+NB_DOLLAR        ,                
+NB_PERCENT       ,                
+NB_AMPERSAND     ,                   
+NB_QUOTE         ,              
+NB_LEFTPAREN     ,                   
+NB_RIGHTPAREN    ,                      
+NB_ASTERISK      ,                   
+NB_PLUS          ,               
+NB_COMMA         ,                
+NB_MINUS         ,              
+NB_PERIOD        ,                  
+NB_SLASH         ,            
+NB_0             ,             
+NB_1             ,        
+NB_2             ,             
+NB_3             ,        
+NB_4             ,             
+NB_5             ,        
+NB_6             ,             
+NB_7             ,        
+NB_8             ,             
+NB_9             ,        
+NB_COLON         ,                 
+NB_SEMICOLON     ,                
+NB_LESS          ,                 
+NB_EQUALS        ,                
+NB_GREATER       ,                
+NB_QUESTION      ,                   
+NB_AT            ,          
+NB_LEFTBRACKET   ,                  
+NB_BACKSLASH     ,                     
+NB_RIGHTBRACKET  ,                    
+NB_CARET         ,                 
+NB_UNDERSCORE    ,                   
+NB_BACKQUOTE     ,                   
+NB_a             ,          
+NB_b             ,           
+NB_c             ,          
+NB_d             ,           
+NB_e             ,          
+NB_f             ,           
+NB_g             ,          
+NB_h             ,           
+NB_i             ,          
+NB_j             ,           
+NB_k             ,          
+NB_l             ,           
+NB_m             ,          
+NB_n             ,           
+NB_o             ,          
+NB_p             ,           
+NB_q             ,          
+NB_r             ,           
+NB_s             ,          
+NB_t             ,           
+NB_u             ,          
+NB_v             ,           
+NB_w             ,          
+NB_x             ,           
+NB_y             ,          
+NB_z             ,           
+NB_DELETE     
+}nb_keycode;
+
+
+typedef struct nb_mouse
+{   
+    u16 x, y;
+
+} nb_mouse;
+
+
+
+typedef enum nb_format
 {
-    GFX_TEXTURE_1D,
-    GFX_TEXTURE_2D  
-} gfx_texture_type;
+    NB_R8,
+    NB_RG8,
+    NB_RGB8,
+    NB_RGBA8 
+} nb_format;
 
-typedef enum gfx_sprite_type
+typedef enum nb_texture_type
 {
-    GFX_SPRITE_REGULAR,//Regular 8x8
-    GFX_SPRITE_WIDE,//Tall 8x16
-    GFX_SPRITE_TALL //Wide 18x8
-} gfx_sprite_type;
+    NB_TEXTURE_1D,
+    NB_TEXTURE_2D  
+} nb_texture_type;
 
-typedef struct gfx_shader
+typedef enum nb_sprite_type
+{
+    NB_SPRITE_REGULAR,//Regular 8x8
+    NB_SPRITE_WIDE,//Tall 8x16
+    NB_SPRITE_TALL //Wide 18x8
+} nb_sprite_type;
+
+typedef struct nb_shader
 {
     u32 vert_shader;
     u32 frag_shader;
@@ -60,161 +149,208 @@ typedef struct gfx_shader
     u32 vert_loc;
     u32 uv_loc;
     //
-} gfx_shader;
+} nb_shader;
 
-typedef struct gfx_texture
+typedef struct nb_texture
 {
     u32 handle;          //texture object handle
     u32 width, height;  //Dimension of texture data
     byte * data;        //weak, nonowning ref to pixel data
-    //correspond to gfx_type and gfx_format but contain the GL  equivalent
+    //correspond to nb_type and nb_format but contain the GL  equivalent
     u32  type;     
     u32 format;   
-} gfx_texture ;
+} nb_texture ;
 
-typedef struct gfx_vertex
+typedef struct nb_vertex
 {
     vec2f pos;   //weak no owning vertex data ptr. Change to byte  scale to console size
     vec2b uv;    //weak no owning vertex data ptr. Change to byte  scale to console size
-} gfx_vertex;
+} nb_vertex;
 
 //
-typedef struct gfx_mesh
+typedef struct nb_mesh
 {
     u32 vao, vbo; //handles : vertex array obj, vertex buffer object
-    gfx_vertex * verts; //weak no owning vertex data ptr. Change to byte  scale to console size
-    gfx_shader * shader;
+    nb_vertex * verts; //weak no owning vertex data ptr. Change to byte  scale to console size
+    nb_shader * shader;
     u32 num_verts;
 
-} gfx_mesh ;
+} nb_mesh ;
 
 //Allocates and frees mesh and vertices!
 //Binds 
-typedef struct gfx_rect
+typedef struct nb_rect
 {
     vec2f pos;                  //position in level
     vec2f size;                 //size to render
-    gfx_mesh  mesh;         //texture to render
-} gfx_rect;
+    nb_mesh  mesh;         //texture to render
+} nb_rect;
 
 
-typedef struct gfx_palette
+typedef struct nb_palette
 {
     rgb * data;           //nonowning ptr
-    gfx_texture texture;    //atlas sheet (palette indices)
-} gfx_palette;
+    nb_texture texture;    //atlas sheet txture (palette indices)
+} nb_palette;
 
 
-typedef struct gfx_atlas
+typedef struct nb_atlas
 {       
     byte * indices;         //nonowning ptr
-    gfx_texture texture;    //atlas sheet (palette indices)
-} gfx_atlas;
+    nb_texture texture;    //atlas sheet texture (palette indices)
+} nb_atlas;
 
-
-//A Sheet representa a texture whose indices map to palette colors
-typedef struct gfx_sheet
-{
-    gfx_palette * palette;
-    gfx_atlas * atlas;    //atlas sheet (palette indices)
-
-} gfx_sheet;
-
-typedef struct gfx_tilemap
-{
-    //each valie indexes into a region of the tilesheet. At offset
-    gfx_texture * map;    //atlas sheet
-} gfx_tilemap;
 
 //At tile is a subrect of its sheet  
 //Rendering sprite, binds palette, binds sheet, then renders rect  
-typedef struct gfx_sprite
+typedef struct nb_sprite
 {
-    gfx_sheet * sheet;      //nonwoning source sprite sheet ref
+    
     vec2i offset;           //sheet offset (top left corner to start reading from )
-    gfx_sprite_type type;   //size of rect to to read from 
+    nb_sprite_type type;   //size of rect to to read from 
     //sprites are tiles whose positions are not determined by level map, but an offset
-    gfx_rect rect; //size determined by type
+    nb_rect rect; //size determined by type
+    bool is_active;
     bool flip_x; //if flipped along y axis 
     bool flip_y; //if flipped along y axis 
-} gfx_sprite;
+} nb_sprite;
 
-typedef struct gfx_timer
+typedef struct nb_timer
 {
     u32 now_ticks;   //time since paused
     u32 last_ticks;   //time since paused
     u32 delta_ticks;     //delta time in ms
-} gfx_timer;
+} nb_timer;
 
-//gfx_nit* does not alloc objects!
+//nb_nit* does not alloc objects!
 
 // --------- GFX Core ----- 
-gfx_status  gfx_init(const char * title, int width, int height);
-void        gfx_destroy();
-void        gfx_clear();
-int         gfx_update();
+nb_status  nb_init_window(const char * title, int width, int height);
+void       nb_destroy_window();
+void       nb_clear_window();
+nb_status  nb_update_window();
+
+
+nb_key_mode nb_key(u32 keycode);
+
 
 // FPS Utils
+void        nb_cap_fps(int max_fps);
+void        nb_uncap_fps();
+float       nb_delta_sec();
+float       nb_delta_ms();
+float       nb_fps();  //
+float       nb_fpms();  //framesper millisec
 
-void        gfx_cap_fps(int max_fps);
-void        gfx_uncap_fps();
-float       gfx_delta_sec();
-float       gfx_delta_ms();
-float       gfx_fps();  //
-float       gfx_fpms();  //framesper millisec
 
-// ---------- GFX Timer ------------ updated on gfx_init and gfx_update
-void        gfx_timer_init(gfx_timer * timer);
-void        gfx_timer_tick(gfx_timer * timer);   //elapsed time while paused or not
+// ---------- GFX Timer ------------ updated on nb_init and nb_update
+
+void        nb_timer_init(nb_timer * timer);
+
+void        nb_timer_tick(nb_timer * timer);   //elapsed time while paused or not
 
 // --------- GFX Shader ----- 
-gfx_status  gfx_init_shader(gfx_shader * shader, const char * vertex_source, const char * fragment_source);
-void        gfx_destroy_shader(gfx_shader * shader);
-void        gfx_bind_shader(gfx_shader * shader);
-gfx_status  gfx_set_uniform_float(gfx_shader * shader, const char * name, float value);
-gfx_status  gfx_set_uniform_int(gfx_shader * shader, const char * name, int value);
-gfx_status  gfx_set_uniform_vec2i(gfx_shader * shader, const char * name, const vec2i * value);
-gfx_status  gfx_set_uniform_vec2f(gfx_shader * shader, const char * name, const vec2f * value);
+nb_status  nb_init_shader( nb_shader * shader, 
+                            const char * vertex_source, 
+                            const char * fragment_source ) ;
+void        nb_destroy_shader( nb_shader * shader    );
+void        nb_bind_shader   ( nb_shader * shader    );
+
+//uniform setters 
+
+nb_status  nb_set_uniform_float( nb_shader * shader,
+                                   const char * name, 
+                                   float value         );
+
+nb_status  nb_set_uniform_int   ( nb_shader * shader, 
+                                    const char * name, 
+                                    int value);
+
+nb_status  nb_set_uniform_vec2i ( nb_shader * shader, 
+                                    const char * name, 
+                                    const vec2i * value);
+
+nb_status  nb_set_uniform_vec2f ( nb_shader * shader, 
+                                    const char * name, 
+                                    const vec2f * value);
 
 // --------- GFX Mesh ----- 
-gfx_status  gfx_init_mesh(gfx_mesh * mesh,  gfx_shader *shader, gfx_vertex * verts, int num_verts);
-void        gfx_destroy_mesh(gfx_mesh * mesh);
-void        gfx_render_mesh(gfx_mesh * mesh);
+nb_status  nb_init_mesh    ( nb_mesh * mesh,  
+                               nb_shader *shader, 
+                               nb_vertex * verts, 
+                               int num_verts     );
+
+void        nb_destroy_mesh ( nb_mesh * mesh);
+
+void        nb_render_mesh  ( nb_mesh * mesh);
 
 // --------- GFX Texture ----- 
-gfx_status  gfx_init_texture(u32 texture_location, gfx_texture * texture, gfx_texture_type type, gfx_format data_format, byte  * data, int width, int height);
-void        gfx_bind_texture(u32 texture_location, gfx_texture * texture);
-void        gfx_update_texture(u32 texture_location, gfx_texture * texture, int x, int y, int width, int height);
+nb_status  nb_init_texture (  u32 texture_location, 
+                                nb_texture * texture, 
+                                nb_texture_type type,
+                                nb_format data_format, 
+                                byte  * data, 
+                                int width, int height  );
+
+void        nb_bind_texture (  u32 texture_location, 
+                                nb_texture * texture);
+
+void        nb_update_texture( u32 texture_location, 
+                                nb_texture * texture, 
+                                int x, int y, 
+                                int width, int height);
 
 // --------- GFX Rect ----- 
-gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, float x, float y, float w, float h);
-void        gfx_destroy_rect(gfx_rect * rect);
-void        gfx_render_rect(gfx_rect * rect);
+nb_status  nb_init_rect(nb_rect * rect, nb_shader * shader, float x, float y, float w, float h);
+
+void        nb_destroy_rect(nb_rect * rect);
+
+void        nb_render_rect(nb_rect * rect);
 
 // ------------ GFX Palette -----------------------
-void        gfx_init_palette(gfx_palette *palette, rgb * data,u32 width, u32 height);
-void        gfx_destroy_palette(gfx_palette *palette);
-void        gfx_update_palette(gfx_palette *palette); //if data changes
-void        gfx_use_palette(gfx_palette *palette );
+void        nb_init_palette   (nb_palette *palette, 
+                                rgb * data,
+                                u32 width, 
+                                u32 height);
+
+void        nb_destroy_palette(nb_palette *palette);
+
+void        nb_update_palette (nb_palette *palette); //if data changes
+
+void        nb_use_palette    (nb_palette *palette );
 
 // ------------ GFX atlas -----------------------
-void        gfx_init_atlas(gfx_atlas * atlas, byte * indices,u32 width, u32 height);
-void        gfx_destroy_atlas(gfx_atlas * atlas);
-void        gfx_update_atlas(gfx_atlas *atlas); //if indices change
-void        gfx_use_atlas(gfx_atlas * atlas);
+void        nb_init_atlas     (nb_atlas * atlas, 
+                                byte * indices,
+                                u32 width, 
+                                u32 height);
+void        nb_destroy_atlas  (nb_atlas * atlas );
+void        nb_update_atlas   (nb_atlas *atlas); //if indices change
+void        nb_use_atlas      (nb_atlas * atlas);
 
-// ------------ GFX Sheet -----------------------
-void        gfx_init_sheet(gfx_sheet * sheet, gfx_palette * palette, gfx_atlas * atlas);
-void        gfx_destroy_sheet(gfx_sheet * sheet);
-void        gfx_use_sheet(gfx_sheet * sheet);
 
 // --------- GFX Sprite  ----- 
-gfx_status  gfx_init_sprite(gfx_sprite * sprite, gfx_sheet * sheet, gfx_shader * shader, vec2i offset, gfx_sprite_type type);
-void        gfx_destroy_sprite(gfx_sprite * sprite);
-void        gfx_render_sprite(gfx_sprite * rect);
-void        gfx_get_sprite_xy(gfx_sprite * sprite, float * x, float * y );
-void        gfx_set_sprite_xy(gfx_sprite * sprite, float  x, float  y );
-void        gfx_flip_sprite(gfx_sprite * sprite, bool x_flip, bool y_flip );
+
+nb_status  nb_init_sprite   ( nb_sprite * sprite,
+                                nb_shader * shader, 
+                                vec2i offset, 
+                                nb_sprite_type type ) ;
+
+void        nb_destroy_sprite( nb_sprite * sprite  ) ;
+
+void        nb_render_sprite ( nb_sprite * sprite  ) ;
+
+void        nb_get_sprite_xy ( nb_sprite * sprite,  
+                                float * x,   
+                                float * y   ) ;
+
+void        nb_set_sprite_xy ( nb_sprite * sprite,
+                                float  x,   
+                                float  y    ) ;
+
+void        nb_flip_sprite   (nb_sprite * sprite, 
+                                bool x_flip, 
+                                bool y_flip  ) ;
 
 
 #endif

@@ -6,13 +6,13 @@ BUILD_DIR=build
 RES_DIR=res
 
 SRC=$(wildcard  $(SRC_DIR)/*.c)
-LIBS =-lGLEW -lGLU -lGL -lSDL2 -lSDL2main 
+LIBS =-lm -lGLEW -lGLU -lGL -lSDL2 -lSDL2main 
 INCS = -I$(INL_DIR)
 OUT=nixboy
 
 all: $(BUILD_DIR)
 	$(CC) $(INCS) $(SRC) -o $(BUILD_DIR)/$(OUT) $(LIBS) 
-	cp -r $(RES_DIR) $(BUILD_DIR)
+	#cp -r $(RES_DIR) $(BUILD_DIR)
 
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)

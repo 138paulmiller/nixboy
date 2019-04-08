@@ -1,19 +1,19 @@
 #include "nb_fs.h"
-#include "nb_gc.h"
-#include <stdio.h>
 
 
-void nb_fread(const char * streamname, char ** contents, int * size)
+void nb_fread(const str filepath, byte ** bytes, int * size)
 {
 	int stream_size = 0;
-	char * bytes = 0;
+	str  buffer = 0;
 	//open fle
-	FILE * stream = fopen(streamname, "rb");
+	FILE * stream = fopen(filepath, "rb");
+
 	if(! stream )
 	{
-		*contents = 0;
+		*bytes = 0;
 		size = 0 ;
 		return;
+
 	}
 	//move to end of stream
 	fseek(stream, 0L, SEEK_END);
@@ -22,11 +22,12 @@ void nb_fread(const char * streamname, char ** contents, int * size)
 	//move to beg of stream
 	fseek(stream, 0L, SEEK_SET);
 	//Allocate enough memory (should I add 1 for the \0?)
-	bytes = (char *)nb_malloc(stream_size);
-	bytes[stream_size] = '\0';
-	fread(bytes, stream_size, 1, stream);
+	buffer = (str)nb_malloc(stream_size * sizeof(byte));
+
+	buffer[stream_size] = '\0';
+	fread(buffer, sizeof(byte),stream_size, stream);
 	
-	*contents = bytes;
+	*bytes = buffer;
 	*size = stream_size;
 }
 

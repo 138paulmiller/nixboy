@@ -1,3 +1,5 @@
+
+
 #include "nb_gfx.h"
 #include "nb_gc.h"
 #include "nb.h"
@@ -11,10 +13,16 @@
 //Global State
 static SDL_Window*     _sdl_window;
 static SDL_Event*      _sdl_event;
-static SDL_GLContext   _sdl_gfx_context;
-static gfx_shader *     _active_shader;  //create a shader stack to push and pop?
-static gfx_sheet *     _active_sheet;  //create a shader stack to push and pop?
-static gfx_timer        _fps_timer;  //create a shader stack to push and pop?
+static SDL_GLContext   _sdl_nb_context;
+static nb_shader *     _active_shader;  //create a shader stack to push and pop?
+static nb_timer        _fps_timer;  //create a shader stack to push and pop?
+
+#define NB_KEY_COUNT 512
+
+//Input objects
+//native keycodes map to this index. Uses get_keycode to map 
+static nb_key_mode     _keys[NB_KEY_COUNT ];
+static nb_mouse        _mouse;
 
 //Frames per Sec, Frames Per MilliSec
 static int  _fps_cap  = -1;
@@ -24,7 +32,86 @@ static int _fpms_cap  = -1;
 // x = i/w
 // y = i%w
 
-static gfx_status _check_shader_error(int shader, int  flag, int is_program)
+//translates from internel keycode to exposed nb_key codes
+static get_keycode(nb_keycode keycode)
+{
+    static SDL_Keycode keys_nb_to_sdl[NB_KEY_COUNT] = { 
+    SDLK_UNKNOWN     ,                   
+    SDLK_BACKSPACE   ,                    
+    SDLK_TAB         ,            
+    SDLK_RETURN      ,                  
+    SDLK_ESCAPE      ,                
+    SDLK_SPACE       ,             
+    SDLK_EXCLAIM     ,                 
+    SDLK_QUOTEDBL    ,               
+    SDLK_HASH        ,                 
+    SDLK_DOLLAR      ,                
+    SDLK_PERCENT     ,                
+    SDLK_AMPERSAND   ,                   
+    SDLK_QUOTE       ,              
+    SDLK_LEFTPAREN   ,                   
+    SDLK_RIGHTPAREN  ,                      
+    SDLK_ASTERISK    ,                   
+    SDLK_PLUS        ,               
+    SDLK_COMMA       ,                
+    SDLK_MINUS       ,              
+    SDLK_PERIOD      ,                  
+    SDLK_SLASH       ,            
+    SDLK_0           ,             
+    SDLK_1           ,        
+    SDLK_2           ,             
+    SDLK_3           ,        
+    SDLK_4           ,             
+    SDLK_5           ,        
+    SDLK_6           ,             
+    SDLK_7           ,        
+    SDLK_8           ,             
+    SDLK_9           ,        
+    SDLK_COLON       ,                 
+    SDLK_SEMICOLON   ,                
+    SDLK_LESS        ,                 
+    SDLK_EQUALS      ,                
+    SDLK_GREATER     ,                
+    SDLK_QUESTION    ,                   
+    SDLK_AT          ,          
+    SDLK_LEFTBRACKET ,                  
+    SDLK_BACKSLASH   ,                     
+    SDLK_RIGHTBRACKET,                    
+    SDLK_CARET       ,                 
+    SDLK_UNDERSCORE  ,                   
+    SDLK_BACKQUOTE   ,                   
+    SDLK_a           ,          
+    SDLK_b           ,           
+    SDLK_c           ,          
+    SDLK_d           ,           
+    SDLK_e           ,          
+    SDLK_f           ,           
+    SDLK_g           ,          
+    SDLK_h           ,           
+    SDLK_i           ,          
+    SDLK_j           ,           
+    SDLK_k           ,          
+    SDLK_l           ,           
+    SDLK_m           ,          
+    SDLK_n           ,           
+    SDLK_o           ,          
+    SDLK_p           ,           
+    SDLK_q           ,          
+    SDLK_r           ,           
+    SDLK_s           ,          
+    SDLK_t           ,           
+    SDLK_u           ,          
+    SDLK_v           ,           
+    SDLK_w           ,          
+    SDLK_x           ,           
+    SDLK_y           ,          
+    SDLK_z           ,           
+    SDLK_DELETE
+};
+    return keys_nb_to_sdl[keycode];
+}
+
+static nb_status _check_shader_error(int shader, int  flag, int is_program)
 {
     int status = 0;
     if(is_program){
@@ -50,31 +137,32 @@ static gfx_status _check_shader_error(int shader, int  flag, int is_program)
             glGetShaderInfoLog(shader, error_len, &error_len, error_msg);
         }
         printf("\nShader Log: %s \n", error_msg);
+
         nb_free( error_msg);
-        return GFX_FAILURE;
+        return NB_FAILURE;
     }
-    return GFX_SUCCESS;
+    
+    return NB_SUCCESS;
 }
 
-static  gfx_status _create_shader_stage(uint type, const char* source)
+static  nb_status _create_shader_stage(uint type, const char* source)
 {
     int shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, 0);
     glCompileShader(shader);
     
-    if(_check_shader_error(shader, GL_COMPILE_STATUS,0)==GFX_FAILURE){
-        return GFX_FAILURE;
+    if(_check_shader_error(shader, GL_COMPILE_STATUS,0) == NB_FAILURE){
+        return -1;
     }
-    
     return shader;
 
 }
 
 
-/////////////////////////////////////// Begin API ///////////////////////////////////////////////////
+/////////////////////////////////////// Window api ///////////////////////////////////////////////////
 
 
- gfx_status gfx_init(const char * title, int width, int height)
+ nb_status nb_init_window(const char * title, int width, int height)
 {
     if(SDL_Init(SDL_INIT_EVERYTHING) < 0){
         puts("SDL Failed to initialize!"); exit(0);     
@@ -82,7 +170,7 @@ static  gfx_status _create_shader_stage(uint type, const char* source)
     
     _sdl_window = SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
     width, height, SDL_WINDOW_OPENGL);
-    //Initialize opengl gfx_color attributes buffer size
+    //Initialize opengl nb_color attributes buffer size
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
@@ -90,92 +178,126 @@ static  gfx_status _create_shader_stage(uint type, const char* source)
     SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 2);
 
-    _sdl_gfx_context = SDL_GL_CreateContext(_sdl_window);
+    _sdl_nb_context = SDL_GL_CreateContext(_sdl_window);
     int status = glewInit(); 
     if(status != GLEW_OK)
     {
         nb_error("GLEW Failed to initialize %d", status);
-        return GFX_FAILURE; 
+        return NB_FAILURE; 
     }   
 
     _active_shader = 0;
-    _active_sheet = 0;
-    gfx_timer_init(&_fps_timer);
-    return GFX_SUCCESS;
+    nb_timer_init(&_fps_timer);
+    return NB_SUCCESS;
 
 }
 
 
-void gfx_destroy()
+void nb_destroy_window()
 {
     SDL_DestroyWindow(_sdl_window);
-    SDL_GL_DeleteContext(_sdl_gfx_context);
+    SDL_GL_DeleteContext(_sdl_nb_context);
     SDL_Quit();
 }
 
-void gfx_clear()
+void nb_clear_window()
 {
     glClearColor(0,0,0,0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 
-int gfx_update()
+nb_status nb_update_window()
 {
     //Poll input events
-    SDL_Event event;
+    static SDL_Event event;
     while (SDL_PollEvent(&event))
-    //TODO create Keymap 
-        if (event.type == SDL_QUIT) return 0;
+    {//TODO create Keymap 
+        if (event.type == SDL_QUIT) 
+        {
+            return NB_FAILURE;
+        }
+        else if (event.type == SDL_MOUSEMOTION)
+        {
+            _mouse.x = event.motion.x;
+            _mouse.y = event.motion.y;
+        }
+        else if (event.type == SDL_KEYUP)
+        {
+            _keys[event.key.keysym.sym] = NB_KEYUP;
+        }
+        else if (event.type == SDL_KEYDOWN)
+        {
+            nb_key_mode * key = &_keys[event.key.keysym.sym];;
+            //if was previously down
+            if (*key == NB_KEYDOWN)
+                *key = NB_KEYHOLD;
+            
+        }
+
+    }
+
+
 
     SDL_GL_SwapWindow(_sdl_window);
-    gfx_clear();
-    gfx_timer_tick(&_fps_timer); 
-    if(_fps_cap != -1 && gfx_fpms() < _fpms_cap)
+    nb_clear_window();
+    nb_timer_tick(&_fps_timer); 
+    if(_fps_cap != -1 && nb_fpms() < _fpms_cap)
     {
-        SDL_Delay(( _fpms_cap - gfx_fpms() ));
+        SDL_Delay(( _fpms_cap - nb_fpms() ));
     }
-    return 1;
+    return NB_SUCCESS;
+}
+
+nb_key_mode nb_key(u32 keycode)
+{
+
+    return _keys[get_keycode( keycode)];
+
 }
 
 
-void gfx_cap_fps(int max_fps)
+/////------------------------------ End Window
+
+//--------------------------------- FPS Utiltites
+
+void nb_cap_fps(int max_fps)
 {
     _fps_cap  =max_fps;
     _fpms_cap  = 1000/_fps_cap;
 }
 
-void gfx_uncap_fps()
+void nb_uncap_fps()
 {
      _fps_cap  =_fpms_cap = -1;
 }
 
 // ---------------- FPS Utils-------------------------------------
-float  gfx_delta_sec()
+float  nb_delta_sec()
 {
-    return 0.001 * gfx_delta_ms();
+    return 0.001 * nb_delta_ms();
 }
-float  gfx_delta_ms()
+float  nb_delta_ms()
 {
     return (_fps_timer.delta_ticks * 1000.f) /(float)SDL_GetPerformanceFrequency() ;
 }
-float  gfx_fps()
+float  nb_fps()
 {
-    return 1.0f/ (gfx_delta_sec());
+    return 1.0f/ (nb_delta_sec());
 }
 
-float  gfx_fpms()
+float  nb_fpms()
 {
-    return 1.0f/ (gfx_delta_ms());
+    return 1.0f/ (nb_delta_ms());
 }
 
-void  gfx_timer_init(gfx_timer * timer){
+void  nb_timer_init(nb_timer * timer){
     timer->delta_ticks = 0;
     timer->now_ticks =0;    
     timer->last_ticks = 0;
 }
 
-void gfx_timer_tick(gfx_timer * timer)
+void nb_timer_tick(nb_timer * timer)
 {
 
     timer->last_ticks = timer->now_ticks;
@@ -186,49 +308,55 @@ void gfx_timer_tick(gfx_timer * timer)
 
 
 // -------------------------- Shader ---------------------------------------
- gfx_status  gfx_init_shader(gfx_shader * shader, const char * vertex_source, const char * fragment_source)
+ nb_status  nb_init_shader(nb_shader * shader, const char * vertex_source, const char * fragment_source)
 {
+
     shader->program = glCreateProgram();
     shader->vert_shader   = _create_shader_stage(GL_VERTEX_SHADER, vertex_source);
-    if(shader->vert_shader == GFX_FAILURE)
+    
+    if(shader->vert_shader == -1)
     {
         nb_error("Failed to Init Vertex Shader");
-        return GFX_FAILURE;
+        return NB_FAILURE;
     }
     shader->frag_shader   = _create_shader_stage(GL_FRAGMENT_SHADER,fragment_source);
-    if(shader->frag_shader == GFX_FAILURE)
+    if(shader->frag_shader == -1)
     {
         nb_error("Failed to Init Fragment Shader");
-        return GFX_FAILURE;
+        return NB_FAILURE;
     }
     
     glAttachShader(shader->program,  shader->vert_shader);
     glAttachShader(shader->program,  shader->frag_shader);
     glLinkProgram(shader->program);
-    if(_check_shader_error(shader->program, GL_LINK_STATUS, 1)== GFX_FAILURE){
-        return GFX_FAILURE;
+
+    if(_check_shader_error(shader->program, GL_LINK_STATUS, 1)== NB_FAILURE){
+
+        return NB_FAILURE;
     }
 
     
-    shader->vert_loc = glGetAttribLocation(shader->program, GFX_ATTRIB_VERT);
-    shader->uv_loc = glGetAttribLocation(shader->program, GFX_ATTRIB_UV);
+    shader->vert_loc = glGetAttribLocation(shader->program, NB_ATTRIB_VERT);
+    shader->uv_loc = glGetAttribLocation(shader->program, NB_ATTRIB_UV);
     if(shader->vert_loc == -1)
     {
-        nb_error("GFX Invalid name for Position Attrib: Expected %s", GFX_ATTRIB_VERT);
-        return GFX_FAILURE;
+        nb_error("GFX Invalid name for Position Attrib: Expected %s", NB_ATTRIB_VERT);
+        return NB_FAILURE;
     }
     if(shader->uv_loc == -1)
     {
-        nb_error("GFX Invalid name for UV Attrib: Expected %s", GFX_ATTRIB_UV);
-        return GFX_FAILURE;
+        nb_error("GFX Invalid name for UV Attrib: Expected %s", NB_ATTRIB_UV);
+        return NB_FAILURE;
     }
 
 
-    return GFX_SUCCESS;
+    return NB_SUCCESS;
 
 }
-void    gfx_destroy_shader(gfx_shader * shader)
+void    nb_destroy_shader(nb_shader * shader)
 {
+    if(!shader) return;
+
     glDeleteShader(shader->vert_shader); // removes
     glDeleteShader(shader->frag_shader); // removes
     glDeleteProgram(shader->program);
@@ -236,14 +364,16 @@ void    gfx_destroy_shader(gfx_shader * shader)
 }
 
 //bind only if not already bound
-void    gfx_bind_shader(gfx_shader * shader)
+void    nb_bind_shader(nb_shader * shader)
 {
+    if(!shader) return;
+
     if(_active_shader != shader)
     {
         _active_shader = shader;
     #ifdef DEBUG
         glValidateProgram(shader->program);
-        if(_check_shader_error(shader->program, GL_VALIDATE_STATUS, 1) == GFX_FAILURE){
+        if(_check_shader_error(shader->program, GL_VALIDATE_STATUS, 1) == NB_FAILURE){
             return ;
         }
     #endif
@@ -258,47 +388,52 @@ void    gfx_bind_shader(gfx_shader * shader)
     if(out_loc == -1)                                               \
     {                                                               \
         nb_warn("Could not set uniform (%s)\n",name);               \
-        return GFX_FAILURE;                                         \
+        return NB_FAILURE;                                         \
     }                                                               \
 
 
 
-gfx_status  gfx_set_uniform_float(gfx_shader * shader, const char * name, float value)
+nb_status  nb_set_uniform_float(nb_shader * shader, const char * name, float value)
 {
+    if(!shader) return;
     _GET_UNIFORM_LOC(location, shader, name)
     glUniform1f(location, value); 
-    return GFX_SUCCESS;
+    return NB_SUCCESS;
 }
-gfx_status  gfx_set_uniform_int(gfx_shader * shader, const char * name, int value)
+nb_status  nb_set_uniform_int(nb_shader * shader, const char * name, int value)
 {
+    if(!shader) return;
     _GET_UNIFORM_LOC(location, shader, name)
     glUniform1i(location, value); 
-    return GFX_SUCCESS;
+    return NB_SUCCESS;
 }
 
-gfx_status  gfx_set_uniform_vec2f(gfx_shader * shader, const char * name, const vec2f * value)
+nb_status  nb_set_uniform_vec2f(nb_shader * shader, const char * name, const vec2f * value)
 {
+    if(!shader) return;
     _GET_UNIFORM_LOC(location, shader, name)
     glUniform2f(location, value->x,value->y); 
-    return GFX_SUCCESS;
+    return NB_SUCCESS;
 }
-gfx_status  gfx_set_uniform_vec2i(gfx_shader * shader, const char * name, const vec2i * value)
+nb_status  nb_set_uniform_vec2i(nb_shader * shader, const char * name, const vec2i * value)
 {
+    if(!shader) return;
     _GET_UNIFORM_LOC(location, shader, name)
     glUniform2i(location, value->x,value->y); 
-    return GFX_SUCCESS;
+    return NB_SUCCESS;
 }
 
-gfx_status gfx_init_mesh(gfx_mesh * mesh, gfx_shader * shader, gfx_vertex *  verts, int num_verts)
+nb_status nb_init_mesh(nb_mesh * mesh, nb_shader * shader, nb_vertex *  verts, int num_verts)
 {
-    int stride = sizeof(gfx_vertex);
-    int size = sizeof(gfx_vertex)*num_verts;        
+    if(!shader || !mesh ) return;
+    int stride = sizeof(nb_vertex);
+    int size = sizeof(nb_vertex)*num_verts;        
 
     mesh->verts = verts;
     mesh->num_verts = num_verts;
     mesh->shader = shader;
     
-    gfx_bind_shader(shader); //Attaching shaders
+    nb_bind_shader(shader); //Attaching shaders
 
     glGenVertexArrays(1, &mesh->vao);
     glBindVertexArray(mesh->vao);
@@ -311,21 +446,22 @@ gfx_status gfx_init_mesh(gfx_mesh * mesh, gfx_shader * shader, gfx_vertex *  ver
     glVertexAttribPointer(shader->vert_loc, 2, GL_FLOAT, GL_FALSE, stride, 0);
     glEnableVertexAttribArray(shader->vert_loc);//enable to draw
     
-    glVertexAttribPointer(shader->uv_loc, 2, GL_UNSIGNED_BYTE, GL_FALSE, stride, (void*)offsetof(gfx_vertex, uv));
+    glVertexAttribPointer(shader->uv_loc, 2, GL_UNSIGNED_BYTE, GL_FALSE, stride, (void*)offsetof(nb_vertex, uv));
     glEnableVertexAttribArray(shader->uv_loc);//enable to draw
     
-    return GFX_SUCCESS;
+    return NB_SUCCESS;
 }
 
-void gfx_destroy_mesh(gfx_mesh * mesh)
+void nb_destroy_mesh(nb_mesh * mesh)
 {
-    gfx_bind_shader(mesh->shader);
+    if(!mesh) return;
+    nb_bind_shader(mesh->shader);
     glDeleteVertexArrays(1, &mesh->vao);
     glDeleteBuffers(1, &mesh->vbo);
     mesh->verts=0;
     
 }
-void gfx_render_mesh(gfx_mesh * mesh)
+void nb_render_mesh(nb_mesh * mesh)
 {
     glBindVertexArray(mesh->vao);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
@@ -335,7 +471,7 @@ void gfx_render_mesh(gfx_mesh * mesh)
 }
 
 // ----------------------------------------------------- Texture ---------------------------------------------------
-void gfx_bind_texture(u32 texture_location, gfx_texture * texture)
+void nb_bind_texture(u32 texture_location, nb_texture * texture)
 {
     u32 tex_unit = GL_TEXTURE0+texture_location;
     glActiveTexture(tex_unit);
@@ -343,7 +479,7 @@ void gfx_bind_texture(u32 texture_location, gfx_texture * texture)
 }
 
 
-gfx_status  gfx_init_texture(u32 texture_location, gfx_texture * texture, gfx_texture_type type, gfx_format data_format, byte  * data, int width, int height)
+nb_status  nb_init_texture(u32 texture_location, nb_texture * texture, nb_texture_type type, nb_format data_format, byte  * data, int width, int height)
 { 
     texture->width = width;
     texture->height = height;
@@ -353,46 +489,46 @@ gfx_status  gfx_init_texture(u32 texture_location, gfx_texture * texture, gfx_te
     texture->format = data_format;
     switch(data_format)
     {
-        case GFX_RGBA8: 
+        case NB_RGBA8: 
             format          = GL_RGBA_INTEGER;  
             internal_format = GL_RGBA8UI;  
         break;
-        case GFX_RGB8: 
+        case NB_RGB8: 
             format          = GL_RGB_INTEGER;  
             internal_format = GL_RGB8UI;  
         break;
-        case GFX_RG8: 
+        case NB_RG8: 
             format          = GL_RG_INTEGER;
             internal_format = GL_RG8UI;
         break;
-        case GFX_R8: 
+        case NB_R8: 
             format          = GL_RED_INTEGER;
             internal_format = GL_R8UI;
         break;
         default:
             nb_error("GFX: load texture : invalid in format  (%d)",data_format);
-            return GFX_FAILURE;
+            return NB_FAILURE;
         break;
     }
 
     switch(type)
     {
-        case  GFX_TEXTURE_1D: 
+        case  NB_TEXTURE_1D: 
             texture->type = GL_TEXTURE_1D;  
         break;
-        case GFX_TEXTURE_2D: 
+        case NB_TEXTURE_2D: 
             texture->type = GL_TEXTURE_2D;  
         break;
         default:
             nb_error("GFX: load texture : invalid value (%d)",type);
-            return GFX_FAILURE;
+            return NB_FAILURE;
         break;
     }
 
     glGenTextures(1, &texture->handle);
     glBindTexture(texture->type, texture->handle);
 
-    //gfx_bind_texture(texture_location, texture);
+    //nb_bind_texture(texture_location, texture);
     
     glTexParameteri(texture->type, GL_TEXTURE_WRAP_S,   GL_REPEAT);
     glTexParameteri(texture->type, GL_TEXTURE_WRAP_T,   GL_REPEAT);
@@ -404,15 +540,15 @@ gfx_status  gfx_init_texture(u32 texture_location, gfx_texture * texture, gfx_te
 
     switch(type)
     {
-        case  GFX_TEXTURE_1D: 
+        case  NB_TEXTURE_1D: 
             glTexImage1D(texture->type, 0, internal_format, width, 0, format, GL_UNSIGNED_BYTE, data);
         break;
-        case GFX_TEXTURE_2D: 
+        case NB_TEXTURE_2D: 
             glTexImage2D(texture->type, 0, internal_format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         break;
         default:
             nb_error("GFX: load texture : invalid texture type(%d)",type);
-            return GFX_FAILURE;
+            return NB_FAILURE;
         break;
     }
 
@@ -420,13 +556,13 @@ gfx_status  gfx_init_texture(u32 texture_location, gfx_texture * texture, gfx_te
     //float border_color[] = { 1.0, 1.0, 1.0 };
     //glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
  
-    return GFX_SUCCESS;
+    return NB_SUCCESS;
 }
 
-void gfx_update_texture(u32 texture_location, gfx_texture * texture, int x, int y, int width, int height)
+void nb_update_texture(u32 texture_location, nb_texture * texture, int x, int y, int width, int height)
 {
 
-    gfx_bind_texture(texture_location, texture);
+    nb_bind_texture(texture_location, texture);
     glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
     glTexSubImage2D(texture->type, 0,x,y,width,height,texture->format, GL_UNSIGNED_BYTE, texture->data);
     //float border_color[] = { 1.0, 1.0, 1.0 };
@@ -435,10 +571,10 @@ void gfx_update_texture(u32 texture_location, gfx_texture * texture, int x, int 
 }
 
 // ------------------------------------- Rect -------------------------------------------
-gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, float x, float y, float w, float h)
+nb_status  nb_init_rect(nb_rect * rect, nb_shader * shader, float x, float y, float w, float h)
 {
  
-    gfx_vertex * verts = nb_malloc(6*sizeof(gfx_vertex));
+    nb_vertex * verts = nb_malloc(6*sizeof(nb_vertex));
     const float xw = x+w;
     const float yh = y+h;
     rect->pos.x = x;       rect->pos.y =  y;
@@ -458,36 +594,37 @@ gfx_status  gfx_init_rect(gfx_rect * rect, gfx_shader * shader, float x, float y
     verts[5].uv.x  =1;     verts[5].uv.y  =1;
     
     rect->mesh.verts = verts;
-    return gfx_init_mesh(&rect->mesh, shader, rect->mesh.verts, 6);
+    return nb_init_mesh(&rect->mesh, shader, rect->mesh.verts, 6);
 }
 
 
-void  gfx_destroy_rect(gfx_rect * rect)
+void  nb_destroy_rect(nb_rect * rect)
 {
+    if(!rect) return;
     nb_free(rect->mesh.verts);
-    gfx_destroy_mesh(&rect->mesh);
+    nb_destroy_mesh(&rect->mesh);
 }
-void  gfx_render_rect(gfx_rect * rect)
+void  nb_render_rect(nb_rect * rect)
 {
     //Update uniforms only if dirty?
-    gfx_set_uniform_vec2f(rect->mesh.shader, GFX_UNIFORM_SIZE, &rect->size);
-    gfx_set_uniform_vec2f(rect->mesh.shader, GFX_UNIFORM_POS,  &rect->pos);
-    gfx_render_mesh(&rect->mesh);   
+    nb_set_uniform_vec2f(rect->mesh.shader, NB_UNIFORM_SIZE, &rect->size);
+    nb_set_uniform_vec2f(rect->mesh.shader, NB_UNIFORM_POS,  &rect->pos);
+    nb_render_mesh(&rect->mesh);   
 }
 
 // ------------ GFX Palette -----------------------
 
-void        gfx_init_palette(gfx_palette *palette, rgb * data, u32 width, u32 height)
+void        nb_init_palette(nb_palette *palette, rgb * data, u32 width, u32 height)
 {
 
-    gfx_status status = gfx_init_texture(    
-                            GFX_PALETTE_TEXTURE_UNIT,
+    nb_status status = nb_init_texture(    
+                            NB_TEXTURE_UNIT_PALETTE,
                             &palette->texture, 
-                            GFX_TEXTURE_1D,
-                            GFX_RGB8,
+                            NB_TEXTURE_1D,
+                            NB_RGB8,
                             &data->data[0],
                             width, height);
-    if(status == GFX_FAILURE)
+    if(status == NB_FAILURE)
     {
         nb_error("Failed to init palette texture");
         return;
@@ -495,36 +632,38 @@ void        gfx_init_palette(gfx_palette *palette, rgb * data, u32 width, u32 he
     palette->data = data;
 
 }
-void        gfx_use_palette(gfx_palette *palette )
+void        nb_use_palette(nb_palette *palette )
 {
-    gfx_bind_texture(GFX_PALETTE_TEXTURE_UNIT, &(palette->texture));
+    nb_bind_texture(NB_TEXTURE_UNIT_PALETTE, &(palette->texture));
 }
 
-void        gfx_update_palette(gfx_palette *palette)
+void        nb_update_palette(nb_palette *palette)
 {
-    gfx_update_texture( GFX_PALETTE_TEXTURE_UNIT, &palette->texture,0,0, palette->texture.width, palette->texture.height);
+    nb_update_texture( NB_TEXTURE_UNIT_PALETTE, &palette->texture,0,0, palette->texture.width, palette->texture.height);
 }
 //if data changes
 
-void        gfx_destroy_palette(gfx_palette * palette)
+void        nb_destroy_palette(nb_palette * palette)
 {
+    if(! palette) return;
+
     palette->data=0;
 }
 
 
 // ------------ GFX atlas -----------------------
 
-void        gfx_init_atlas(gfx_atlas * atlas, byte * indices, u32 width, u32 height)
+void        nb_init_atlas(nb_atlas * atlas, byte * indices, u32 width, u32 height)
 {
 
-    gfx_status status = gfx_init_texture(    
-                            GFX_ATLAS_TEXTURE_UNIT,
+    nb_status status = nb_init_texture(    
+                            NB_TEXTURE_UNIT_ATLAS,
                             &atlas->texture, 
-                            GFX_TEXTURE_2D, 
-                            GFX_R8,
+                            NB_TEXTURE_2D, 
+                            NB_R8,
                             &indices[0],
                             width, height);
-    if(status == GFX_FAILURE)
+    if(status == NB_FAILURE)
     {
         nb_error("Failed to init palette texture");
         return;
@@ -532,102 +671,94 @@ void        gfx_init_atlas(gfx_atlas * atlas, byte * indices, u32 width, u32 hei
     atlas->indices = indices;
 }
 
-void        gfx_destroy_atlas(gfx_atlas * atlas)
+void        nb_destroy_atlas(nb_atlas * atlas)
 {
-    atlas->indices =0 ;
+    if(atlas)
+        atlas->indices =0 ;
 //    nb_free(atlas->indices);
 }
 
-void        gfx_update_atlas(gfx_atlas *atlas)
+void        nb_update_atlas(nb_atlas *atlas)
 {
-    gfx_update_texture( GFX_ATLAS_TEXTURE_UNIT, &atlas->texture,0,0, atlas->texture.width, atlas->texture.height); 
+    nb_update_texture( NB_TEXTURE_UNIT_ATLAS, &atlas->texture,0,0, atlas->texture.width, atlas->texture.height); 
 }
 
-void        gfx_use_atlas(gfx_atlas * atlas)
+void        nb_use_atlas(nb_atlas * atlas)
 {
-    gfx_bind_texture(GFX_ATLAS_TEXTURE_UNIT, &(atlas->texture));
+    nb_bind_texture(NB_TEXTURE_UNIT_ATLAS, &(atlas->texture));
 }
 
-
-// ------------ GFX Sheet -----------------------
-void        gfx_use_sheet(gfx_sheet * sheet)
-{
-    
-    gfx_use_palette(sheet->palette);
-    gfx_use_atlas(sheet->atlas);
-    
-}
-
-void        gfx_init_sheet(gfx_sheet * sheet, gfx_palette * palette, gfx_atlas * atlas)
-{
-    sheet->atlas = atlas;
-    sheet->palette = palette;
-}
 
 
 //---------------------------------------------- Sprites --------------------------------------------------
 
-gfx_status  gfx_init_sprite(gfx_sprite * sprite, gfx_sheet * sheet, gfx_shader * shader, vec2i offset, gfx_sprite_type type)
+nb_status  nb_init_sprite(nb_sprite * sprite, nb_shader * shader, vec2i offset, nb_sprite_type type)
 {
     int width, height;
     switch(type)
     {
         //Regular 8x8
-        case GFX_SPRITE_REGULAR:
+        case NB_SPRITE_REGULAR:
             width  = NB_SPRITE_SIZE;
             height = NB_SPRITE_SIZE;
         break;
         //Tall 8x16    
-        case GFX_SPRITE_WIDE:
+        case NB_SPRITE_WIDE:
             width  = NB_SPRITE_SIZE*2;
             height = NB_SPRITE_SIZE;
         break;
          //Wide 16x8
-        case GFX_SPRITE_TALL:
+        case NB_SPRITE_TALL:
             width  = NB_SPRITE_SIZE;
             height = NB_SPRITE_SIZE*2;
         break;
     }
 
 //TODO type to determine 
-    gfx_status  status = gfx_init_rect(&sprite->rect, shader, 0, 0, width, height);
-    if(status == GFX_FAILURE)
+    nb_status  status = nb_init_rect(&sprite->rect, shader, 0, 0, width, height);
+    if(status == NB_FAILURE)
     {
-        return GFX_FAILURE;
+        nb_error("Failed to create sprte object");
+        return NB_FAILURE;
     }
-
-    sprite->sheet = sheet;
+    sprite->is_active  = 1;
     sprite->offset = offset;
     sprite->flip_x = sprite->flip_y = 0; 
 }
 
-void        gfx_destroy_sprite(gfx_sprite * sprite)
+void        nb_destroy_sprite(nb_sprite * sprite)
 {
-    gfx_destroy_rect(&sprite->rect);
+    if(sprite)
+    {
+        sprite->is_active = 0;
+        nb_destroy_rect(&sprite->rect);
+    }   
 }
 
-void        gfx_render_sprite(gfx_sprite * sprite)
+void        nb_render_sprite(nb_sprite * sprite)
 {
-    gfx_use_sheet(sprite->sheet);
-    //sprites reference sader
-    gfx_set_uniform_vec2i(sprite->rect.mesh.shader, GFX_UNIFORM_OFFSET, &sprite->offset);
-    gfx_render_rect(&sprite->rect);
+    if( sprite && sprite->is_active)
+    {
+        //sprites reference sader
+        nb_set_uniform_vec2i(sprite->rect.mesh.shader, NB_UNIFORM_OFFSET, &sprite->offset);
+        nb_render_rect(&sprite->rect);
+    }
 }
 
 
-void        gfx_get_sprite_xy(gfx_sprite * sprite, float * x, float * y )
+void        nb_get_sprite_xy(nb_sprite * sprite, float * x, float * y )
 {
     *x = sprite->rect.pos.x;
     *y = sprite->rect.pos.y;
 }
 
-void        gfx_set_sprite_xy(gfx_sprite * sprite, float  x, float  y )
+void        nb_set_sprite_xy(nb_sprite * sprite, float  x, float  y )
 {
     sprite->rect.pos.x = x;
     sprite->rect.pos.y = y;
 }
 
-void        gfx_flip_sprite(gfx_sprite * sprite, bool flip_x, bool flip_y )
+void        nb_flip_sprite(nb_sprite * sprite, bool flip_x, bool flip_y )
 {
     sprite->flip_x = flip_x;
     sprite->flip_y = flip_y;   

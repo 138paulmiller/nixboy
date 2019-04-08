@@ -1,21 +1,286 @@
+#include "nb.h"
 
-//Atlas renderer
 
-//To render
-/*
-    Raw Data is a R16 Window resolution is 240*4 160*4
-    The fragment shader reads each r16 block as a texel. 
-    RA_B_C_D  
-    x,y     x+1,y
-    ----------
-    | A | B |
-    ---------
-    | C | D |
-    x,y+1   x+1,y+1
-    Where x,y is position in NB Screen space
-    Each 4 bit values maps into the palette. 
+
+//Statics that represent the nixboy machine
+static nb_state     _nb;
+
+static nb_settings *           _settings;
+    
+//-----Utilities
+
+// These should not modify the above statics
+
+
+//Log nb_error to crash report.txt and call shutdown
+//add after error nb_log(__VA_ARGS__)     \
+
+#define fatal_error(...){ \
+nb_error(__VA_ARGS__)     \
+nb_shutdown();            \
+                          \
+}                       
+
+
+static void _load_shader(nb_shader * shader,  const str vert_filepath, const str frag_filepath)
+{
+    //create file struct, intermittengly check last modified data, if changes then reload (hotload ) 
+    str vert_source = 0;
+    str frag_source = 0 ;
+    int vert_size;
+    int frag_size;
+
+    nb_debug("Loading Shader : %s  %s\n", vert_filepath, frag_filepath)
     
 
-*/
-//Map x [A,B] to Y[C,D] 
-//Y = (X-A)/(B-A) * (D-C) + C
+    nb_fread(vert_filepath, &vert_source, &vert_size); 
+    nb_fread(frag_filepath, &frag_source, &frag_size);
+
+    if(! vert_source)
+    {
+         fatal_error("Failed to Read res/sprite.vert file")
+        return;
+    }   
+    
+    if(! frag_source)
+    {
+
+         fatal_error("Failed to Read res/sprite.frag file")
+            return;
+    }   
+    
+
+    nb_init_shader(shader, vert_source, frag_source);
+
+    nb_free(vert_source);
+
+    nb_free(frag_source);
+
+}
+
+
+void _bind_sprite_shader()
+{
+    nb_bind_shader(&_nb.sprite_shader);
+       
+    nb_use_palette(&_nb.palette);
+    nb_use_atlas  (&_nb.sprite_atlas);
+
+}
+
+void _update_sprite_shader_uniforms()
+{
+
+    //set indeices for texture units        
+    nb_set_uniform_int(&_nb.sprite_shader, NB_UNIFORM_ATLAS,      NB_TEXTURE_UNIT_ATLAS);
+    nb_set_uniform_int(&_nb.sprite_shader, NB_UNIFORM_PALETTE,    NB_TEXTURE_UNIT_PALETTE);
+
+    nb_set_uniform_vec2i(&_nb.sprite_shader, NB_UNIFORM_SCREEN_RESOLUTION  ,  &_nb.screen_resolution       );
+    nb_set_uniform_vec2i(&_nb.sprite_shader, NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.sprite_atlas_resolution );
+    
+    nb_set_uniform_int(&_nb.sprite_shader, NB_UNIFORM_SCALE               , _settings->screen.scale);
+    nb_set_uniform_int(&_nb.sprite_shader, NB_UNIFORM_PALETTE_SIZE        , _settings->gfx.palette_size );
+
+
+    nb_set_uniform_int(&_nb.sprite_shader, NB_UNIFORM_COLOR_DEPTH         ,   _settings->gfx.color_depth);
+    //draw each sprite and draw!
+
+ 
+}
+
+
+
+//---------------------- nb api --------------------------------
+
+void        nb_startup(nb_settings * settings)
+{
+
+    if( ! settings)
+    {
+        fatal_error("Failed to Initalize nixboy. null settings!")
+    }
+    _settings = settings;
+    u32 width  =    settings->screen.width;
+    u32 height =    settings->screen.height;
+    u32 scale  =    settings->screen.scale;
+
+    _nb.screen_resolution.x = _settings->screen.width;
+    _nb.screen_resolution.y = _settings->screen.height;
+    
+    _nb.sprite_atlas_resolution.x = _settings->gfx.sprite_atlas_width;
+    _nb.sprite_atlas_resolution.y = _settings->gfx.sprite_atlas_height; 
+
+    _nb.tile_atlas_resolution.x = _settings->gfx.tile_atlas_width;
+    _nb.tile_atlas_resolution.y = _settings->gfx.tile_atlas_height; 
+
+    _nb.sprite_block_size         =  settings->gfx.max_sprite_count * sizeof(nb_sprite) ;
+    _nb.palette_block_size        = settings->gfx.palette_size      * sizeof(rgb)       ;
+    _nb.sprite_atlas_block_size   = sizeof(byte) 
+                                    * _nb.sprite_atlas_resolution.x 
+                                    * _nb.sprite_atlas_resolution.y;
+    
+
+    _nb.tile_atlas_block_size   = sizeof(byte) 
+                                    * _nb.tile_atlas_resolution.x 
+                                    * _nb.tile_atlas_resolution.y;
+    
+
+    _nb.sprite_block        = nb_malloc(_nb.sprite_block_size);
+        memset(_nb.sprite_block, 0, _nb.sprite_block_size );
+    _nb.palette_colors         = nb_malloc(_nb.palette_block_size);
+        memset(_nb.palette_colors, 0, _nb.palette_block_size );
+
+    _nb.sprite_atlas_indices    = nb_malloc(_nb.sprite_atlas_block_size);
+        memset(_nb.sprite_atlas_indices, 0, _nb.sprite_atlas_block_size );
+//startup
+
+    nb_init_window(settings->screen.title, width*scale, height*scale );
+    //  ---------------------- Compile Shaders -------------------
+    _load_shader(&_nb.sprite_shader, "res/sprite.vert","res/sprite.frag");
+ //   _load_shader(&_nb.tile_shader, "res/tile.vert","res/tile.frag");
+
+    _bind_sprite_shader();
+    _update_sprite_shader_uniforms();
+}
+
+nb_status   nb_update()
+{
+    static nb_status status;
+    status =  nb_update_window();
+    switch(status)
+    {
+        case NB_FAILURE:
+        break;
+        case NB_PAUSE:  
+        break;
+        case NB_QUIT:   
+        break;
+
+        default:
+            status = NB_CONTINUE; 
+        break;
+    }
+
+    return status;
+}
+
+nb_status   nb_draw(u32 flags)
+{
+
+
+        //sprite0.offset.x= sprite0.offset.x%(int)(sqrt(NB_ATLAS_SIZE));
+        
+//        nb_set_sprite_xy(&sprite0, x, y);
+    static int sprite_index ;
+    static nb_sprite * sprite;
+
+    //update an
+    if(test_flag(flags, NB_FLAG_PALETTE_DIRTY))
+    {
+     
+        nb_update_palette(&_nb.palette);
+        _update_sprite_shader_uniforms();
+    }
+    //update an
+    if(test_flag(flags, NB_FLAG_SPRITE_ATLAS_DIRTY))
+    {
+        nb_update_atlas(&_nb.sprite_atlas);
+        _update_sprite_shader_uniforms();
+    }
+
+
+     _bind_sprite_shader();
+
+    {  //---------------------- draw sprites --------------------------------
+        sprite_index  = 0;
+        for(sprite_index=0; sprite_index    < _settings->gfx.max_sprite_count; sprite_index++)
+        {
+
+            sprite = &_nb.sprite_block[sprite_index];
+            //may or may not render. if destroyed. rednere will skip
+            nb_render_sprite(sprite);   
+        }
+    } 
+}
+
+
+void        nb_shutdown()
+{
+
+    //delete sprites
+    nb_free(_nb.sprite_block);
+    _nb.sprite_block = 0;
+
+    //free up data
+    if( _nb.palette_colors)
+    {
+        nb_free(_nb.palette_colors);
+        _nb.palette_colors = 0;
+    } 
+
+    if( _nb.sprite_atlas_indices)
+    {
+        nb_free(_nb.sprite_atlas_indices);
+        _nb.sprite_atlas_indices = 0;
+    } 
+
+    nb_destroy_palette( & _nb.palette      );
+    nb_destroy_atlas  ( & _nb.tile_atlas   );
+    nb_destroy_atlas  ( & _nb.sprite_atlas );
+    
+    //destroy shader 
+    nb_destroy_shader( & _nb.sprite_shader );
+    nb_destroy_shader( & _nb.tile_shader   );
+
+    nb_destroy_window(); 
+
+    exit(0);
+}
+// --------------------------------- Accessors / Mutators for intoernal structure --------------
+void        nb_set_palette(rgb * colors)
+{
+
+    memcpy(_nb.palette_colors, colors, _nb.palette_block_size );
+    //_nb.palette_colors = colors;
+    nb_init_palette( &_nb.palette, _nb.palette_colors, _nb.palette_block_size, 1);
+}
+
+rgb *        nb_get_palette()
+{
+    return _nb.palette_colors;
+}
+
+
+void        nb_set_sprite_atlas(byte * indices)
+{
+    memcpy(_nb.sprite_atlas_indices, indices, _nb.sprite_atlas_block_size );
+    //_nb.sprite_atlas_indices = color_indices;
+    nb_init_atlas(&_nb.sprite_atlas, _nb.sprite_atlas_indices, _nb.sprite_atlas_resolution.x , _nb.sprite_atlas_resolution.y);
+}
+
+byte *        nb_get_sprite_atlas()
+{
+    return  _nb.sprite_atlas_indices;
+}
+
+void    nb_update_sprite_atlas()
+{
+    nb_update_atlas(&_nb.sprite_atlas);
+
+}
+
+
+nb_sprite *  nb_add_sprite( nb_sprite_type type,int index)
+{
+    nb_sprite * sprite = &_nb.sprite_block[index];
+    vec2i offset = {index , 0};
+    
+    nb_init_sprite(sprite, &_nb.sprite_shader, offset, type);
+
+    return  sprite;
+}
+
+void        nb_remove_sprite(nb_sprite * sprite)
+{
+    nb_destroy_sprite(sprite); //set sheet to null, no longer renderable    
+}

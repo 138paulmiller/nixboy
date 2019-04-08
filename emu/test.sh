@@ -1,2 +1,2 @@
-make && ./build/nixboy
+make clean && make && ./build/nixboy
 

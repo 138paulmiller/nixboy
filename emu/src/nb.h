@@ -74,46 +74,139 @@ x -----------------------------------End Bankable Memory
 #include "nb_fs.h"
 #include "nb_gc.h"
 #include "nb_gfx.h"
-#include <math.h>
+#include "nb_cart.h"
 
-
-#define NB_PALETTE_SIZE  		32		//Number of colors
-#define NB_SPRITE_ATLAS_SIZE  	64	// 64x64 sheet of indices
-#define NB_MAP_ATLAS_SIZE  		128	//Number of colors
+//-------------------------- gfx defs --------------------------
 #define NB_SPRITE_SIZE  		8		//width and height of regular sprite, wide and tall double with and height respectively
-#define NB_COLOR_DEPTH			255
-#define NB_SCREEN_WIDTH  		100  
-#define NB_SCREEN_HEIGHT 		60 
-
-#define NB_SCALE 				10 
-#define NB_TITLE 				"nixboy"
 
 
+//-------------------------- memory defs --------------------------
+
+
+
+
+typedef struct nb_settings
+{
+
+	//path to cartidge file. loads memory and code data from the formatted text 
+	str 	cartridge_filepath ;
+	struct _screen
+	{
+		//screen settings
+		str 	title;
+		u16 		width;
+		u16 		height;
+		u16 		scale;
+	} screen;
+
+	struct _gfx
+	{
+		//gfx settings
+		u16 		palette_size; 
+		u16 		sprite_atlas_width;
+		u16 		sprite_atlas_height; 
+		u16 		tile_atlas_width;
+		u16 		tile_atlas_height; 
+		u16 		color_depth;
+		u16 		max_sprite_count;
+	}gfx;
+
+
+} nb_settings;
+
+
+
+
+//STate of nb
+typedef struct nb_state
+{
+	//  state settings 
+	//cache 
+	vec2i screen_resolution;
+	vec2i sprite_atlas_resolution;
+	vec2i tile_atlas_resolution;
+
+
+	//************** gfx state
+
+		nb_shader   sprite_shader;
+			//TODO
+		nb_shader   tile_shader;
+
+		//Maintains references to corresponding palettes and atlas textures 
+		nb_atlas sprite_atlas;
+		nb_atlas tile_atlas;
+
+		nb_palette palette;
+	//Data segments. Owningg pointers!
+    rgb  * palette_colors;
+    byte * sprite_atlas_indices;
+    nb_sprite * sprite_block;
+
+    //cache vars
+    u32 sprite_block_size   ;
+	u32 palette_block_size ;
+    u32 sprite_atlas_block_size   ;
+    u32 tile_atlas_block_size   ;
+
+}nb_state;
+
+
+void 		nb_startup(nb_settings * settings);
 
 /*
-Create a nb_rect that encapuslates verts,uvs.  texture  class that will render sprites, 
+	Updates machine
+		- 	update input
+		-	update cpu instructions
+		- 	update state
 */
-typedef struct nb_cpu
+
+nb_status 	nb_update();
+
+
+
+
+#define test_flag(flags,pos) ( (flags) & (1<<pos ) )
+#define set_flag(flags,pos) (flags |= (1>> pos));
+
+
+typedef enum nb_flags
 {
-    //All references are non-owning to allow onwing references to manage memory 
-    byte * screen;  		// 
-    byte * palette;  		//  
-    byte * tile_atlas;   	//   
-    byte * map;     		// 
-}	nb_cpu ;
-
-//Create Catridges that contain Memory Banks
-
-// There exists a texture object for most data blocks in the cartidge for render purposes
-typedef enum nb_tile_mode
-{
-	INVALID=-1, DEFAULT, SMALL, TALL, WIDE    
-}	nb_tile_mode;
+	//indicates bit position in flag
+	NB_FLAG_PALETTE_DIRTY 		= 1,
+	NB_FLAG_SPRITE_ATLAS_DIRTY 	= 2
+}
+nb_flags;
 
 
-//Draw mode - Per pixel. Raw Set pixel functionality
-void nb_draw_screen(nb_cpu * cpu);
 
+/* - 	render state */
+nb_status 	nb_draw(u32 flags);
+/*
+*/
+void 		nb_shutdown();
+
+
+//Copies data over into memory
+void        nb_set_palette(rgb * colors);
+rgb *       nb_get_palette();
+
+void        nb_set_sprite_atlas(byte * color_indices);
+byte *      nb_get_sprite_atlas();
+
+
+
+//-------------------- Creation/ Deletion utilities -------------
+
+//Create a mapping to map sprite index to a 2D offset
+//sprites are tiles whose positions are not determined by an index, but an offset
+nb_sprite *	nb_add_sprite  (    nb_sprite_type type,   int index );
+
+void 		nb_remove_sprite(  nb_sprite * sprite);
+
+
+
+//Create helpers to swapping palettes, updating sheets etc
 //Loads the palette and a texture to render .
 //void nb_init_palette(nb_palette * palette);
 
