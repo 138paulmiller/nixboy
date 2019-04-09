@@ -38,24 +38,27 @@ static void _load_shader(nb_shader * shader,  const str vert_filepath, const str
 
     if(! vert_source)
     {
-         fatal_error("Failed to Read res/sprite.vert file")
-        return;
+        nb_error("Failed to Read res/sprite.vert file\n")
+        exit(1);
     }   
     
     if(! frag_source)
     {
 
-         fatal_error("Failed to Read res/sprite.frag file")
-            return;
+        nb_error("Failed to Read res/sprite.frag file\n")
+        exit(1);
     }   
     
 
+    nb_debug("Compiling Shader\n");
     nb_init_shader(shader, vert_source, frag_source);
 
-    nb_free(vert_source);
+    if(vert_source)
+        nb_free(vert_source);
+    if(frag_source)
+        nb_free(frag_source);
 
-    nb_free(frag_source);
-
+    nb_debug("Done\n");
 }
 
 
@@ -81,7 +84,6 @@ void _update_sprite_shader_uniforms()
     nb_set_uniform_int(&_nb.sprite_shader, NB_UNIFORM_SCALE               , _settings->screen.scale);
     nb_set_uniform_int(&_nb.sprite_shader, NB_UNIFORM_PALETTE_SIZE        , _settings->gfx.palette_size );
 
-
     nb_set_uniform_int(&_nb.sprite_shader, NB_UNIFORM_COLOR_DEPTH         ,   _settings->gfx.color_depth);
     //draw each sprite and draw!
 
@@ -99,39 +101,43 @@ void        nb_startup(nb_settings * settings)
     {
         fatal_error("Failed to Initalize nixboy. null settings!")
     }
-    _settings = settings;
+_settings = settings;
+
     u32 width  =    settings->screen.width;
     u32 height =    settings->screen.height;
     u32 scale  =    settings->screen.scale;
 
-    _nb.screen_resolution.x = _settings->screen.width;
-    _nb.screen_resolution.y = _settings->screen.height;
+    _nb.screen_resolution.x = settings->screen.width;
+    _nb.screen_resolution.y = settings->screen.height;
     
-    _nb.sprite_atlas_resolution.x = _settings->gfx.sprite_atlas_width;
-    _nb.sprite_atlas_resolution.y = _settings->gfx.sprite_atlas_height; 
+    _nb.sprite_atlas_resolution.x = settings->gfx.sprite_atlas_width;
+    _nb.sprite_atlas_resolution.y = settings->gfx.sprite_atlas_height; 
 
-    _nb.tile_atlas_resolution.x = _settings->gfx.tile_atlas_width;
-    _nb.tile_atlas_resolution.y = _settings->gfx.tile_atlas_height; 
+    _nb.tile_atlas_resolution.x = settings->gfx.tile_atlas_width;
+    _nb.tile_atlas_resolution.y = settings->gfx.tile_atlas_height; 
+
+    _nb.sprite_size = _settings->gfx.sprite_size;
 
     _nb.sprite_block_size         =  settings->gfx.max_sprite_count * sizeof(nb_sprite) ;
-    _nb.palette_block_size        = settings->gfx.palette_size      * sizeof(rgb)       ;
-    _nb.sprite_atlas_block_size   = sizeof(byte) 
+    u32 palette_block_size        = settings->gfx.palette_size      * sizeof(rgb)       ;
+    u32 sprite_atlas_block_size   = sizeof(byte) 
                                     * _nb.sprite_atlas_resolution.x 
                                     * _nb.sprite_atlas_resolution.y;
     
 
-    _nb.tile_atlas_block_size   = sizeof(byte) 
+    u32  tile_atlas_block_size   = sizeof(byte) 
                                     * _nb.tile_atlas_resolution.x 
                                     * _nb.tile_atlas_resolution.y;
     
 
     _nb.sprite_block        = nb_malloc(_nb.sprite_block_size);
         memset(_nb.sprite_block, 0, _nb.sprite_block_size );
-    _nb.palette_colors         = nb_malloc(_nb.palette_block_size);
-        memset(_nb.palette_colors, 0, _nb.palette_block_size );
 
-    _nb.sprite_atlas_indices    = nb_malloc(_nb.sprite_atlas_block_size);
-        memset(_nb.sprite_atlas_indices, 0, _nb.sprite_atlas_block_size );
+    _nb.palette_colors         = nb_malloc(palette_block_size);
+        memset(_nb.palette_colors, 0, palette_block_size );
+
+    _nb.sprite_atlas_indices    = nb_malloc(sprite_atlas_block_size);
+        memset(_nb.sprite_atlas_indices, 0, sprite_atlas_block_size );
 //startup
 
     nb_init_window(settings->screen.title, width*scale, height*scale );
@@ -198,6 +204,7 @@ nb_status   nb_draw(u32 flags)
 
             sprite = &_nb.sprite_block[sprite_index];
             //may or may not render. if destroyed. rednere will skip
+            
             nb_render_sprite(sprite);   
         }
     } 
@@ -240,9 +247,9 @@ void        nb_shutdown()
 void        nb_set_palette(rgb * colors)
 {
 
-    memcpy(_nb.palette_colors, colors, _nb.palette_block_size );
+    memcpy(_nb.palette_colors, colors, _nb.palette_size * sizeof(rgb));
     //_nb.palette_colors = colors;
-    nb_init_palette( &_nb.palette, _nb.palette_colors, _nb.palette_block_size, 1);
+    nb_init_palette( &_nb.palette, _nb.palette_colors, _nb.palette_size, 1);
 }
 
 rgb *        nb_get_palette()
@@ -253,9 +260,18 @@ rgb *        nb_get_palette()
 
 void        nb_set_sprite_atlas(byte * indices)
 {
-    memcpy(_nb.sprite_atlas_indices, indices, _nb.sprite_atlas_block_size );
+    static u32 sprite_atlas_block_size;
+    sprite_atlas_block_size = _nb.sprite_atlas_resolution.x * _nb.sprite_atlas_resolution.y * sizeof(byte);
+    
+
+    memcpy(_nb.sprite_atlas_indices, indices, 
+      sprite_atlas_block_size);
     //_nb.sprite_atlas_indices = color_indices;
-    nb_init_atlas(&_nb.sprite_atlas, _nb.sprite_atlas_indices, _nb.sprite_atlas_resolution.x , _nb.sprite_atlas_resolution.y);
+    nb_init_atlas(
+        &_nb.sprite_atlas, 
+        _nb.sprite_atlas_indices, 
+        _nb.sprite_atlas_resolution.x , 
+        _nb.sprite_atlas_resolution.y );
 }
 
 byte *        nb_get_sprite_atlas()
@@ -272,10 +288,32 @@ void    nb_update_sprite_atlas()
 
 nb_sprite *  nb_add_sprite( nb_sprite_type type,int index)
 {
+
+    vec2i offset  = { index * _nb.sprite_size , 0};
+    vec2f size    = { 0,  0};
     nb_sprite * sprite = &_nb.sprite_block[index];
-    vec2i offset = {index , 0};
-    
-    nb_init_sprite(sprite, &_nb.sprite_shader, offset, type);
+
+    switch(type)
+    {
+        //Regular 8x8
+        case NB_SPRITE_REGULAR:
+            size.x  = _nb.sprite_size;
+            size.y  = _nb.sprite_size;
+        break;
+        //Tall 8x16    
+        case NB_SPRITE_WIDE:
+            size.x = _nb.sprite_size * 2 ;
+            size.y = _nb.sprite_size;
+        break;
+         //Wide 16x8
+        case NB_SPRITE_TALL:
+            size.x = _nb.sprite_size;
+            size.y = _nb.sprite_size * 2 ;
+        break;
+    }
+
+
+    nb_init_sprite(sprite, &_nb.sprite_shader, offset, size);
 
     return  sprite;
 }

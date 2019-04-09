@@ -5,7 +5,7 @@ uniform usampler2D atlas;
 uniform ivec2   screen_resolution;
 uniform vec2    size;
 uniform vec2    pos;
-uniform int   scale;
+uniform int     scale;
 
 in vec2         in_vert;
 in vec2         in_uv;

@@ -29,7 +29,7 @@ Tile based sprite renderer
 
 typedef enum nb_key_mode
 {
-    NB_KEYUP, 
+    NB_KEYUP = 0, 
     NB_KEYDOWN,
     NB_KEYHOLD, 
 }nb_key_mode;
@@ -207,7 +207,6 @@ typedef struct nb_sprite
 {
     
     vec2i offset;           //sheet offset (top left corner to start reading from )
-    nb_sprite_type type;   //size of rect to to read from 
     //sprites are tiles whose positions are not determined by level map, but an offset
     nb_rect rect; //size determined by type
     bool is_active;
@@ -333,8 +332,7 @@ void        nb_use_atlas      (nb_atlas * atlas);
 
 nb_status  nb_init_sprite   ( nb_sprite * sprite,
                                 nb_shader * shader, 
-                                vec2i offset, 
-                                nb_sprite_type type ) ;
+                                vec2i offset, vec2f size ) ;
 
 void        nb_destroy_sprite( nb_sprite * sprite  ) ;
 

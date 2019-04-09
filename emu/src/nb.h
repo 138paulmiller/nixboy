@@ -103,6 +103,7 @@ typedef struct nb_settings
 	{
 		//gfx settings
 		u16 		palette_size; 
+		u16 		sprite_size; 
 		u16 		sprite_atlas_width;
 		u16 		sprite_atlas_height; 
 		u16 		tile_atlas_width;
@@ -120,12 +121,6 @@ typedef struct nb_settings
 //STate of nb
 typedef struct nb_state
 {
-	//  state settings 
-	//cache 
-	vec2i screen_resolution;
-	vec2i sprite_atlas_resolution;
-	vec2i tile_atlas_resolution;
-
 
 	//************** gfx state
 
@@ -144,10 +139,14 @@ typedef struct nb_state
     nb_sprite * sprite_block;
 
     //cache vars
-    u32 sprite_block_size   ;
-	u32 palette_block_size ;
-    u32 sprite_atlas_block_size   ;
-    u32 tile_atlas_block_size   ;
+	//cache 
+	vec2i screen_resolution;
+	vec2i sprite_atlas_resolution;
+	vec2i tile_atlas_resolution;
+
+    u32 sprite_block_size; //size of sprite object buffer
+    u32 sprite_size;
+	u32 palette_size ;
 
 }nb_state;
 

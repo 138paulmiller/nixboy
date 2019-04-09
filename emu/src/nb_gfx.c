@@ -2,7 +2,6 @@
 
 #include "nb_gfx.h"
 #include "nb_gc.h"
-#include "nb.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,32 +9,32 @@
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 
-//Global State
+//create window object
 static SDL_Window*     _sdl_window;
 static SDL_Event*      _sdl_event;
 static SDL_GLContext   _sdl_nb_context;
-static nb_shader *     _active_shader;  //create a shader stack to push and pop?
 static nb_timer        _fps_timer;  //create a shader stack to push and pop?
 
 #define NB_KEY_COUNT 512
 
 //Input objects
 //native keycodes map to this index. Uses get_keycode to map 
-static nb_key_mode     _keys[NB_KEY_COUNT ];
+static nb_key_mode     _keys[NB_KEY_COUNT ] = {NB_KEYUP };
 static nb_mouse        _mouse;
 
 //Frames per Sec, Frames Per MilliSec
 static int  _fps_cap  = -1;
 static int _fpms_cap  = -1;
 
+static nb_shader *     _active_shader;  //create a shader stack to push and pop?
 //map all indices from 1d to 2d using size of palette, sheet or map
 // x = i/w
 // y = i%w
 
 //translates from internel keycode to exposed nb_key codes
-static get_keycode(nb_keycode keycode)
+static u32 get_keycode(nb_keycode keycode)
 {
-    static SDL_Keycode keys_nb_to_sdl[NB_KEY_COUNT] = { 
+static SDL_Keycode keys_nb_to_sdl[NB_KEY_COUNT] = { 
     SDLK_UNKNOWN     ,                   
     SDLK_BACKSPACE   ,                    
     SDLK_TAB         ,            
@@ -148,7 +147,10 @@ static nb_status _check_shader_error(int shader, int  flag, int is_program)
 static  nb_status _create_shader_stage(uint type, const char* source)
 {
     int shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, 0);
+    const int count = 1;
+    const char * files[] = { source };
+    int lengths[]       = { strlen(source)  };
+    glShaderSource(shader, count, files, lengths);
     glCompileShader(shader);
     
     if(_check_shader_error(shader, GL_COMPILE_STATUS,0) == NB_FAILURE){
@@ -212,29 +214,43 @@ nb_status nb_update_window()
     //Poll input events
     static SDL_Event event;
     while (SDL_PollEvent(&event))
-    {//TODO create Keymap 
-        if (event.type == SDL_QUIT) 
+    {
+        switch(event.type)
         {
-            return NB_FAILURE;
-        }
-        else if (event.type == SDL_MOUSEMOTION)
-        {
-            _mouse.x = event.motion.x;
-            _mouse.y = event.motion.y;
-        }
-        else if (event.type == SDL_KEYUP)
-        {
-            _keys[event.key.keysym.sym] = NB_KEYUP;
-        }
-        else if (event.type == SDL_KEYDOWN)
-        {
-            nb_key_mode * key = &_keys[event.key.keysym.sym];;
-            //if was previously down
-            if (*key == NB_KEYDOWN)
-                *key = NB_KEYHOLD;
+            case  SDL_QUIT:  return NB_FAILURE;
             
-        }
+            case  SDL_MOUSEMOTION: 
+            {
+                _mouse.x = event.motion.x;
+                _mouse.y = event.motion.y;
 
+            }
+            break;
+
+            case  SDL_KEYUP: 
+            {
+                _keys[event.key.keysym.sym] = NB_KEYUP;
+            }
+            break;
+            case SDL_KEYDOWN:
+            {
+                u32 sym = event.key.keysym.sym;
+                nb_key_mode key = _keys[sym];
+                //if was previously down
+                if (key == NB_KEYDOWN)
+                {
+                    _keys[sym]= NB_KEYHOLD;
+                } 
+                else
+                {
+                    _keys[sym]= NB_KEYDOWN;                    
+                }
+            }
+            break;
+
+
+        }
+        
     }
 
 
@@ -313,7 +329,6 @@ void nb_timer_tick(nb_timer * timer)
 
     shader->program = glCreateProgram();
     shader->vert_shader   = _create_shader_stage(GL_VERTEX_SHADER, vertex_source);
-    
     if(shader->vert_shader == -1)
     {
         nb_error("Failed to Init Vertex Shader");
@@ -331,7 +346,6 @@ void nb_timer_tick(nb_timer * timer)
     glLinkProgram(shader->program);
 
     if(_check_shader_error(shader->program, GL_LINK_STATUS, 1)== NB_FAILURE){
-
         return NB_FAILURE;
     }
 
@@ -387,7 +401,7 @@ void    nb_bind_shader(nb_shader * shader)
     int out_loc = glGetUniformLocation(shader->program, name);      \
     if(out_loc == -1)                                               \
     {                                                               \
-        nb_warn("Could not set uniform (%s)\n",name);               \
+        /*nb_warn("Could not set uniform (%s)\n",name);*/               \
         return NB_FAILURE;                                         \
     }                                                               \
 
@@ -692,30 +706,11 @@ void        nb_use_atlas(nb_atlas * atlas)
 
 //---------------------------------------------- Sprites --------------------------------------------------
 
-nb_status  nb_init_sprite(nb_sprite * sprite, nb_shader * shader, vec2i offset, nb_sprite_type type)
+nb_status  nb_init_sprite(nb_sprite * sprite, nb_shader * shader, vec2i offset, vec2f size)
 {
-    int width, height;
-    switch(type)
-    {
-        //Regular 8x8
-        case NB_SPRITE_REGULAR:
-            width  = NB_SPRITE_SIZE;
-            height = NB_SPRITE_SIZE;
-        break;
-        //Tall 8x16    
-        case NB_SPRITE_WIDE:
-            width  = NB_SPRITE_SIZE*2;
-            height = NB_SPRITE_SIZE;
-        break;
-         //Wide 16x8
-        case NB_SPRITE_TALL:
-            width  = NB_SPRITE_SIZE;
-            height = NB_SPRITE_SIZE*2;
-        break;
-    }
-
-//TODO type to determine 
-    nb_status  status = nb_init_rect(&sprite->rect, shader, 0, 0, width, height);
+ 
+//TODO type to determine                                            //width , height
+    nb_status  status = nb_init_rect(&sprite->rect, shader, 0, 0, size.x, size.y);
     if(status == NB_FAILURE)
     {
         nb_error("Failed to create sprte object");
