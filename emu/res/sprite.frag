@@ -35,14 +35,15 @@ void main()
 	out_color = texture(atlas, uv)/vec4(palette_size,1,1,1);
 	return;	
 #endif
+	
 	vec2 pixel = mod(uv, scale); 
 	
 	vec2 sprite_per_atlas = atlas_resolution / size;
 
-	vec2 sprite_uv =  pixel*size+offset*sprite_per_atlas;
+	vec2 sprite_uv =  (pixel*size+offset)/sprite_per_atlas ;
 
 	//Get Color index
-	sprite_uv =sprite_uv/atlas_resolution;
+	sprite_uv =sprite_uv;
 
 	out_color = get_color(sprite_uv);
 }
