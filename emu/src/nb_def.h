@@ -20,8 +20,8 @@ typedef int16_t     i16;
 typedef int32_t     i32;
 //char string 
 typedef uint8_t  *     str ;
-//wide char string 
-typedef uint16_t  *    wstr;
+//wide char string  TODO
+//typedef uint16_t  *    wstr;
 
 typedef enum nb_status
 {

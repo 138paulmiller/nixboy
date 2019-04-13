@@ -19,7 +19,7 @@ static nb_timer        _fps_timer;  //create a shader stack to push and pop?
 
 //Input objects
 //native keycodes map to this index. Uses get_keycode to map 
-static nb_key_mode     _keys[NB_KEY_COUNT ] = {NB_KEYUP };
+static nb_key_state     _keys[NB_KEY_COUNT ] = {NB_KEYUP };
 static nb_mouse        _mouse;
 
 //Frames per Sec, Frames Per MilliSec
@@ -30,11 +30,12 @@ static nb_shader *     _active_shader;  //create a shader stack to push and pop?
 //map all indices from 1d to 2d using size of palette, sheet or map
 // x = i/w
 // y = i%w
+//used to query previous key.
 
-//translates from internel keycode to exposed nb_key codes
-static u32 get_keycode(nb_keycode keycode)
+nb_key_state nb_get_key_state(u32 key)
 {
-static SDL_Keycode keys_nb_to_sdl[NB_KEY_COUNT] = { 
+//translates from internel keycode to exposed nb_key codes
+static u32 _nb_to_sdl_keymap[NB_KEY_COUNT] = { 
     SDLK_UNKNOWN     ,                   
     SDLK_BACKSPACE   ,                    
     SDLK_TAB         ,            
@@ -107,9 +108,9 @@ static SDL_Keycode keys_nb_to_sdl[NB_KEY_COUNT] = {
     SDLK_z           ,           
     SDLK_DELETE
 };
-    return keys_nb_to_sdl[keycode];
-}
 
+    return _keys[_nb_to_sdl_keymap[ key]];
+}
 static nb_status _check_shader_error(int shader, int  flag, int is_program)
 {
     int status = 0;
@@ -209,10 +210,30 @@ void nb_clear_window()
 }
 
 
+
 nb_status nb_update_window()
 {
-    //Poll input events
+    static u32 key_stack[NB_KEY_COUNT] = {0};
+    static i16 key_stack_index         = -1;
     static SDL_Event event;
+
+    //if a key was previously down. push, then next frame set to hold
+    while(key_stack_index > -1)
+    {
+        u32 prev_key = key_stack[key_stack_index];
+        switch(_keys[prev_key])
+        {
+            case  NB_KEYPRESS:   
+            {
+                _keys[prev_key] = NB_KEYDOWN;  
+            }
+            break;
+        }
+
+        key_stack_index--;
+    }
+
+    //handle input events
     while (SDL_PollEvent(&event))
     {
         switch(event.type)
@@ -223,7 +244,6 @@ nb_status nb_update_window()
             {
                 _mouse.x = event.motion.x;
                 _mouse.y = event.motion.y;
-
             }
             break;
 
@@ -234,43 +254,27 @@ nb_status nb_update_window()
             break;
             case SDL_KEYDOWN:
             {
-                u32 sym = event.key.keysym.sym;
-                nb_key_mode key = _keys[sym];
-                //if was previously down
-                if (key == NB_KEYDOWN)
+                u32 key = key_stack[++key_stack_index] = event.key.keysym.sym; 
+                if(_keys[key] != NB_KEYDOWN)
                 {
-                    _keys[sym]= NB_KEYHOLD;
-                } 
-                else
-                {
-                    _keys[sym]= NB_KEYDOWN;                    
+                    _keys[key] = NB_KEYPRESS;      
                 }
             }
             break;
-
-
         }
-        
     }
-
-
 
     SDL_GL_SwapWindow(_sdl_window);
     nb_clear_window();
+
     nb_timer_tick(&_fps_timer); 
     if(_fps_cap != -1 && nb_fpms() < _fpms_cap)
     {
-        SDL_Delay(( _fpms_cap - nb_fpms() ));
+//        SDL_Delay(( _fpms_cap - nb_fpms() ));
     }
     return NB_SUCCESS;
 }
 
-nb_key_mode nb_key(u32 keycode)
-{
-
-    return _keys[get_keycode( keycode)];
-
-}
 
 
 /////------------------------------ End Window
@@ -387,7 +391,8 @@ void    nb_bind_shader(nb_shader * shader)
         _active_shader = shader;
     #ifdef DEBUG
         glValidateProgram(shader->program);
-        if(_check_shader_error(shader->program, GL_VALIDATE_STATUS, 1) == NB_FAILURE){
+        if(_check_shader_error(shader->program, GL_VALIDATE_STATUS, 1) == NB_FAILURE)
+        {
             return ;
         }
     #endif
@@ -401,7 +406,7 @@ void    nb_bind_shader(nb_shader * shader)
     int out_loc = glGetUniformLocation(shader->program, name);      \
     if(out_loc == -1)                                               \
     {                                                               \
-        /*nb_warn("Could not set uniform (%s)\n",name);*/               \
+        /*nb_warn("Could not set uniform (%s)\n",name);*/           \
         return NB_FAILURE;                                         \
     }                                                               \
 

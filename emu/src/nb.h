@@ -76,8 +76,6 @@ x -----------------------------------End Bankable Memory
 #include "nb_gfx.h"
 #include "nb_cart.h"
 
-//-------------------------- gfx defs --------------------------
-#define NB_SPRITE_SIZE  		8		//width and height of regular sprite, wide and tall double with and height respectively
 
 
 //-------------------------- memory defs --------------------------

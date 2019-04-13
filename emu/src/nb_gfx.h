@@ -27,12 +27,12 @@ Tile based sprite renderer
 #define NB_TEXTURE_UNIT_PALETTE     0
 #define NB_TEXTURE_UNIT_ATLAS      1
 
-typedef enum nb_key_mode
+typedef enum nb_key_state
 {
-    NB_KEYUP = 0, 
-    NB_KEYDOWN,
-    NB_KEYHOLD, 
-}nb_key_mode;
+    NB_KEYUP = 0,    //key is not down
+    NB_KEYPRESS,     //key just pressed down
+    NB_KEYDOWN,     // key is down 
+}nb_key_state;
 
 typedef enum keycode
 {
@@ -230,7 +230,7 @@ void       nb_clear_window();
 nb_status  nb_update_window();
 
 
-nb_key_mode nb_key(u32 keycode);
+nb_key_state nb_get_key_state(u32 key);
 
 
 // FPS Utils

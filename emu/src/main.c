@@ -1,21 +1,22 @@
-
-
-
-
-
 #include "nb.h"
+#define DEFAULT_TITLE                "nixboy"
+//width and height of regular sprite, wide and tall double with and height respectively
+#define DEFAULT_SPRITE_SIZE          8       
+//Number of colors
+#define DEFAULT_PALETTE_SIZE         32      
 
-#define DEFAULT_SPRITE_SIZE          8       //width and height of regular sprite, wide and tall double with and height respectively
-#define DEFAULT_PALETTE_SIZE         32      //Number of colors
-#define DEFAULT_SPRITE_ATLAS_WIDTH   64   // 64x64 sheet of indices
-#define DEFAULT_SPRITE_ATLAS_HEIGHT  64   // 64x64 sheet of indices
-#define DEFAULT_TILE_ATLAS_WIDTH     128  // 64x64 sheet of indices
-#define DEFAULT_TILE_ATLAS_HEIGHT    128  // 64x64 sheet of indices
+#define DEFAULT_SPRITE_ATLAS_WIDTH   64   
+#define DEFAULT_SPRITE_ATLAS_HEIGHT  64   
+
+#define DEFAULT_TILE_ATLAS_WIDTH     128  
+#define DEFAULT_TILE_ATLAS_HEIGHT    128  
+
 #define DEFAULT_SCREEN_WIDTH         100  
 #define DEFAULT_SCREEN_HEIGHT        60 
+
 #define DEFAULT_COLOR_DEPTH          255
 #define DEFAULT_SCALE                10 
-#define DEFAULT_TITLE                "nixboy"
+
 #define DEFAULT_MAX_SPRITE_COUNT     256
 
 
@@ -48,7 +49,7 @@ int main(int argc, char ** argv)
             scale :DEFAULT_SCALE
         },    
 
-        .gfx= 
+        .gfx =
         {
             palette_size          : DEFAULT_PALETTE_SIZE         ,
             sprite_size           : DEFAULT_SPRITE_SIZE         , 
@@ -94,12 +95,15 @@ int main(int argc, char ** argv)
 
 
     nb_debug("Starting machine \n");
+
     while( NB_CONTINUE ==  (status = nb_update() ) )
     {   
         u32 flags =0 ; 
         set_flag(flags , NB_FLAG_SPRITE_ATLAS_DIRTY);
         set_flag(flags , NB_FLAG_PALETTE_DIRTY);
-        if(nb_key(NB_q) != NB_KEYUP)
+     
+        //on key press. TODO Create an event callback?   
+        if(nb_get_key_state(NB_q) == NB_KEYPRESS)
         {
             sprite1->offset.x +=1;            
         }        
