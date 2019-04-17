@@ -48,11 +48,10 @@ static void _load_shader(nb_shader * shader,  const str vert_filepath, const str
         nb_error("Failed to Read res/sprite.frag file\n")
         exit(1);
     }   
-    
 
     nb_debug("Compiling Shader\n");
-    nb_init_shader(shader, vert_source, frag_source);
 
+    nb_init_shader(shader, vert_source, frag_source);
     if(vert_source)
         nb_free(vert_source);
     if(frag_source)

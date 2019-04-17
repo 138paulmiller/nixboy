@@ -28,7 +28,7 @@ static nb_shader *     _active_shader;  //create a shader stack to push and pop?
 //map all indices from 1d to 2d using size of palette, sheet or map
 // x = i/w
 // y = i%w
-static nb_status _check_shader_error(int shader, int  flag, int is_program)
+static nb_status _check_shader_error(i32 shader, i32  flag, bool is_program)
 {
     int status = 0;
     if(is_program){
@@ -62,8 +62,9 @@ static nb_status _check_shader_error(int shader, int  flag, int is_program)
     return NB_SUCCESS;
 }
 
-static  nb_status _create_shader_stage(uint type, const char* source)
+static  nb_status _create_shader_stage(u32 type, const char* source)
 {
+
     int shader = glCreateShader(type);
     const int count = 1;
     const char * files[] = { source };
@@ -99,10 +100,21 @@ static  nb_status _create_shader_stage(uint type, const char* source)
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 2);
 
     _sdl_gl_context = SDL_GL_CreateContext(_sdl_window);
+    if(_sdl_gl_context == 0)
+    {
+        nb_error("SDL Failed to create GL Context ");
+        return NB_FAILURE;     
+    }
+
+    nb_debug( "GL Context "  ) ;
+    nb_debug( "Vendor  : %s\n"  , glGetString( GL_VENDOR ) ) ;
+    nb_debug( "Renderer: %s\n" , glGetString( GL_RENDERER ) ) ;
+    nb_debug( "Version : %s\n" , glGetString( GL_VERSION ) ) ;
+
     int status = glewInit(); 
     if(status != GLEW_OK)
     {
-        nb_error("GLEW Failed to initialize %d", status);
+        nb_error("GLEW Failed to initialize ");
         return NB_FAILURE; 
     }   
 
@@ -253,8 +265,16 @@ void nb_timer_tick(nb_timer * timer)
  nb_status  nb_init_shader(nb_shader * shader, const char * vertex_source, const char * fragment_source)
 {
 
-    shader->program = glCreateProgram();
+    u32 program = glCreateProgram();
+    if(program == 0)
+    {
+        nb_error("Failed to Create Shader Program");
+        return NB_FAILURE;
+    }
+    
+    shader->program = program;
     shader->vert_shader   = _create_shader_stage(GL_VERTEX_SHADER, vertex_source);
+
     if(shader->vert_shader == -1)
     {
         nb_error("Failed to Init Vertex Shader");
@@ -336,14 +356,14 @@ void    nb_bind_shader(nb_shader * shader)
 
 nb_status  nb_set_uniform_float(nb_shader * shader, const char * name, float value)
 {
-    if(!shader) return;
+    if(!shader) return NB_FAILURE;
     _GET_UNIFORM_LOC(location, shader, name)
     glUniform1f(location, value); 
     return NB_SUCCESS;
 }
 nb_status  nb_set_uniform_int(nb_shader * shader, const char * name, int value)
 {
-    if(!shader) return;
+    if(!shader) return NB_FAILURE;
     _GET_UNIFORM_LOC(location, shader, name)
     glUniform1i(location, value); 
     return NB_SUCCESS;
@@ -351,14 +371,14 @@ nb_status  nb_set_uniform_int(nb_shader * shader, const char * name, int value)
 
 nb_status  nb_set_uniform_vec2f(nb_shader * shader, const char * name, const vec2f * value)
 {
-    if(!shader) return;
+    if(!shader) return NB_FAILURE;
     _GET_UNIFORM_LOC(location, shader, name)
     glUniform2f(location, value->x,value->y); 
     return NB_SUCCESS;
 }
 nb_status  nb_set_uniform_vec2i(nb_shader * shader, const char * name, const vec2i * value)
 {
-    if(!shader) return;
+    if(!shader) return NB_FAILURE;
     _GET_UNIFORM_LOC(location, shader, name)
     glUniform2i(location, value->x,value->y); 
     return NB_SUCCESS;
@@ -366,7 +386,7 @@ nb_status  nb_set_uniform_vec2i(nb_shader * shader, const char * name, const vec
 
 nb_status nb_init_mesh(nb_mesh * mesh, nb_shader * shader, nb_vertex *  verts, int num_verts)
 {
-    if(!shader || !mesh ) return;
+    if(!shader || !mesh ) return NB_FAILURE;
     int stride = sizeof(nb_vertex);
     int size = sizeof(nb_vertex)*num_verts;        
 

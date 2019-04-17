@@ -1,4 +1,5 @@
 #include "nb_fs.h"
+#include "nb_gc.h"
 #include <stdio.h>
 
 
@@ -8,6 +9,7 @@ void nb_fread(const str filepath, byte ** bytes, int * size)
 	str  buffer = 0;
 	//open fle
 	FILE * stream = fopen(filepath, "rb");
+
 
 	if(! stream )
 	{
@@ -25,6 +27,7 @@ void nb_fread(const str filepath, byte ** bytes, int * size)
 	buffer = (str)nb_malloc(stream_size * sizeof(byte)+1);
 	buffer[stream_size] = '\0';
 	fread(buffer, sizeof(byte),stream_size, stream);
+	fclose(stream);
 	
 	*bytes = buffer;
 	*size = stream_size;

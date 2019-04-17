@@ -13,8 +13,9 @@ INCS = -I$(INL_DIR)
 OUT=nixboy
 
 all: $(SRC_LIST)
-	$(CC) $(INCS) $(LIBS)\
+	$(CC) $(INCS) \
 		$(OUT_LIST) \
+		$(LIBS)\
 		-o $(BUILD_DIR)/$(OUT)
 	
 .PHONY : $(SRC_LIST)
