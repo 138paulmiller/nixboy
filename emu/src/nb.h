@@ -188,8 +188,14 @@ void 		nb_shutdown();
 void        nb_set_palette(rgb * colors);
 rgb *       nb_get_palette();
 
+//Copies data over into memory
 void        nb_set_sprite_atlas(byte * color_indices);
 byte *      nb_get_sprite_atlas();
+
+
+//Copies data over into memory
+void        nb_set_tile_atlas(byte * color_indices);
+byte *      nb_get_tile_atlas();
 
 
 
@@ -198,7 +204,6 @@ byte *      nb_get_sprite_atlas();
 //Create a mapping to map sprite index to a 2D offset
 //sprites are tiles whose positions are not determined by an index, but an offset
 nb_sprite *	nb_add_sprite  (    nb_sprite_type type,   int index );
-
 void 		nb_remove_sprite(  nb_sprite * sprite);
 
 

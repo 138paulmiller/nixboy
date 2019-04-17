@@ -73,4 +73,3 @@ typedef struct vec3i
 
 
 #endif // NB_TYPES_H
-

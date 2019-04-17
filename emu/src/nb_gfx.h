@@ -7,7 +7,8 @@ Tile based sprite renderer
 
 */
 
-#include "nb_def.h"
+#include "nb_defs.h"
+#include "nb_keys.h"
 
 //Expected defs
 #define NB_ATTRIB_VERT                 "in_vert"
@@ -27,96 +28,20 @@ Tile based sprite renderer
 #define NB_TEXTURE_UNIT_PALETTE     0
 #define NB_TEXTURE_UNIT_ATLAS      1
 
-typedef enum nb_key_state
-{
-    NB_KEYUP = 0,    //key is not down
-    NB_KEYPRESS,     //key just pressed down
-    NB_KEYDOWN,     // key is down 
-}nb_key_state;
 
-typedef enum keycode
-{
-
-NB_UNKNOWN     = 0 ,                   
-NB_BACKSPACE     ,                    
-NB_TAB           ,            
-NB_RETURN        ,                  
-NB_ESCAPE        ,                
-NB_SPACE         ,             
-NB_EXCLAIM       ,                 
-NB_QUOTEDBL      ,               
-NB_HASH          ,                 
-NB_DOLLAR        ,                
-NB_PERCENT       ,                
-NB_AMPERSAND     ,                   
-NB_QUOTE         ,              
-NB_LEFTPAREN     ,                   
-NB_RIGHTPAREN    ,                      
-NB_ASTERISK      ,                   
-NB_PLUS          ,               
-NB_COMMA         ,                
-NB_MINUS         ,              
-NB_PERIOD        ,                  
-NB_SLASH         ,            
-NB_0             ,             
-NB_1             ,        
-NB_2             ,             
-NB_3             ,        
-NB_4             ,             
-NB_5             ,        
-NB_6             ,             
-NB_7             ,        
-NB_8             ,             
-NB_9             ,        
-NB_COLON         ,                 
-NB_SEMICOLON     ,                
-NB_LESS          ,                 
-NB_EQUALS        ,                
-NB_GREATER       ,                
-NB_QUESTION      ,                   
-NB_AT            ,          
-NB_LEFTBRACKET   ,                  
-NB_BACKSLASH     ,                     
-NB_RIGHTBRACKET  ,                    
-NB_CARET         ,                 
-NB_UNDERSCORE    ,                   
-NB_BACKQUOTE     ,                   
-NB_a             ,          
-NB_b             ,           
-NB_c             ,          
-NB_d             ,           
-NB_e             ,          
-NB_f             ,           
-NB_g             ,          
-NB_h             ,           
-NB_i             ,          
-NB_j             ,           
-NB_k             ,          
-NB_l             ,           
-NB_m             ,          
-NB_n             ,           
-NB_o             ,          
-NB_p             ,           
-NB_q             ,          
-NB_r             ,           
-NB_s             ,          
-NB_t             ,           
-NB_u             ,          
-NB_v             ,           
-NB_w             ,          
-NB_x             ,           
-NB_y             ,          
-NB_z             ,           
-NB_DELETE     
-}nb_keycode;
-
-
+// 
 typedef struct nb_mouse
 {   
     u16 x, y;
 
 } nb_mouse;
 
+typedef struct nb_timer
+{
+    u32 now_ticks;   //time since paused
+    u32 last_ticks;   //time since paused
+    u32 delta_ticks;     //delta time in ms
+} nb_timer;
 
 
 typedef enum nb_format
@@ -214,12 +139,16 @@ typedef struct nb_sprite
     bool flip_y; //if flipped along y axis 
 } nb_sprite;
 
-typedef struct nb_timer
+
+//Rendering level, binds palette, and tile atlas  
+typedef struct nb_level
 {
-    u32 now_ticks;   //time since paused
-    u32 last_ticks;   //time since paused
-    u32 delta_ticks;     //delta time in ms
-} nb_timer;
+    vec2i offset;           
+    nb_atlas * tile_atlas;
+} nb_level; //TODO
+
+
+
 
 //nb_nit* does not alloc objects!
 
@@ -228,9 +157,7 @@ nb_status  nb_init_window(const char * title, int width, int height);
 void       nb_destroy_window();
 void       nb_clear_window();
 nb_status  nb_update_window();
-
-
-nb_key_state nb_get_key_state(u32 key);
+void       nb_get_mouse_xy(u16 * x, u16 * y);
 
 
 // FPS Utils
@@ -245,7 +172,6 @@ float       nb_fpms();  //framesper millisec
 // ---------- GFX Timer ------------ updated on nb_init and nb_update
 
 void        nb_timer_init(nb_timer * timer);
-
 void        nb_timer_tick(nb_timer * timer);   //elapsed time while paused or not
 
 // --------- GFX Shader ----- 

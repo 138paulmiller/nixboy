@@ -1,4 +1,7 @@
 #include "nb.h"
+
+////////////// ----------------- Default Configs ---------------------------
+
 #define DEFAULT_TITLE                "nixboy"
 //width and height of regular sprite, wide and tall double with and height respectively
 #define DEFAULT_SPRITE_SIZE          8       
@@ -103,7 +106,7 @@ int main(int argc, char ** argv)
         set_flag(flags , NB_FLAG_PALETTE_DIRTY);
      
         //on key press. TODO Create an event callback?   
-        if(nb_get_key_state(NB_q) == NB_KEYPRESS)
+        if(nb_get_keystate(NB_q) == NB_KEYPRESS)
         {
             sprite1->offset.x +=1;            
         }        

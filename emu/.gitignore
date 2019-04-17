@@ -1,5 +1,5 @@
-build/*s
-s*.exe
+build/
+*.exe
 *.VC.db
 *.VC.VC.opendb
 *.vcxproj.user

@@ -2,7 +2,7 @@
 #define NB_GC_H
 
 #include <stdlib.h>
-#include "nb_def.h"
+#include "nb_defs.h"
 /*
 	Garbage collection
 */

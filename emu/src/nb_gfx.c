@@ -7,20 +7,18 @@
 #include <stdlib.h>
 
 #include <GL/glew.h>
+
 #include <SDL2/SDL.h>
 
 //create window object
 static SDL_Window*     _sdl_window;
 static SDL_Event*      _sdl_event;
-static SDL_GLContext   _sdl_nb_context;
+static SDL_GLContext   _sdl_gl_context;
+
+
+static nb_mouse        _mouse;
 static nb_timer        _fps_timer;  //create a shader stack to push and pop?
 
-#define NB_KEY_COUNT 512
-
-//Input objects
-//native keycodes map to this index. Uses get_keycode to map 
-static nb_key_state     _keys[NB_KEY_COUNT ] = {NB_KEYUP };
-static nb_mouse        _mouse;
 
 //Frames per Sec, Frames Per MilliSec
 static int  _fps_cap  = -1;
@@ -30,87 +28,6 @@ static nb_shader *     _active_shader;  //create a shader stack to push and pop?
 //map all indices from 1d to 2d using size of palette, sheet or map
 // x = i/w
 // y = i%w
-//used to query previous key.
-
-nb_key_state nb_get_key_state(u32 key)
-{
-//translates from internel keycode to exposed nb_key codes
-static u32 _nb_to_sdl_keymap[NB_KEY_COUNT] = { 
-    SDLK_UNKNOWN     ,                   
-    SDLK_BACKSPACE   ,                    
-    SDLK_TAB         ,            
-    SDLK_RETURN      ,                  
-    SDLK_ESCAPE      ,                
-    SDLK_SPACE       ,             
-    SDLK_EXCLAIM     ,                 
-    SDLK_QUOTEDBL    ,               
-    SDLK_HASH        ,                 
-    SDLK_DOLLAR      ,                
-    SDLK_PERCENT     ,                
-    SDLK_AMPERSAND   ,                   
-    SDLK_QUOTE       ,              
-    SDLK_LEFTPAREN   ,                   
-    SDLK_RIGHTPAREN  ,                      
-    SDLK_ASTERISK    ,                   
-    SDLK_PLUS        ,               
-    SDLK_COMMA       ,                
-    SDLK_MINUS       ,              
-    SDLK_PERIOD      ,                  
-    SDLK_SLASH       ,            
-    SDLK_0           ,             
-    SDLK_1           ,        
-    SDLK_2           ,             
-    SDLK_3           ,        
-    SDLK_4           ,             
-    SDLK_5           ,        
-    SDLK_6           ,             
-    SDLK_7           ,        
-    SDLK_8           ,             
-    SDLK_9           ,        
-    SDLK_COLON       ,                 
-    SDLK_SEMICOLON   ,                
-    SDLK_LESS        ,                 
-    SDLK_EQUALS      ,                
-    SDLK_GREATER     ,                
-    SDLK_QUESTION    ,                   
-    SDLK_AT          ,          
-    SDLK_LEFTBRACKET ,                  
-    SDLK_BACKSLASH   ,                     
-    SDLK_RIGHTBRACKET,                    
-    SDLK_CARET       ,                 
-    SDLK_UNDERSCORE  ,                   
-    SDLK_BACKQUOTE   ,                   
-    SDLK_a           ,          
-    SDLK_b           ,           
-    SDLK_c           ,          
-    SDLK_d           ,           
-    SDLK_e           ,          
-    SDLK_f           ,           
-    SDLK_g           ,          
-    SDLK_h           ,           
-    SDLK_i           ,          
-    SDLK_j           ,           
-    SDLK_k           ,          
-    SDLK_l           ,           
-    SDLK_m           ,          
-    SDLK_n           ,           
-    SDLK_o           ,          
-    SDLK_p           ,           
-    SDLK_q           ,          
-    SDLK_r           ,           
-    SDLK_s           ,          
-    SDLK_t           ,           
-    SDLK_u           ,          
-    SDLK_v           ,           
-    SDLK_w           ,          
-    SDLK_x           ,           
-    SDLK_y           ,          
-    SDLK_z           ,           
-    SDLK_DELETE
-};
-
-    return _keys[_nb_to_sdl_keymap[ key]];
-}
 static nb_status _check_shader_error(int shader, int  flag, int is_program)
 {
     int status = 0;
@@ -181,7 +98,7 @@ static  nb_status _create_shader_stage(uint type, const char* source)
     SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 2);
 
-    _sdl_nb_context = SDL_GL_CreateContext(_sdl_window);
+    _sdl_gl_context = SDL_GL_CreateContext(_sdl_window);
     int status = glewInit(); 
     if(status != GLEW_OK)
     {
@@ -198,9 +115,11 @@ static  nb_status _create_shader_stage(uint type, const char* source)
 
 void nb_destroy_window()
 {
+
     SDL_DestroyWindow(_sdl_window);
-    SDL_GL_DeleteContext(_sdl_nb_context);
+    SDL_GL_DeleteContext(_sdl_gl_context);
     SDL_Quit();
+
 }
 
 void nb_clear_window()
@@ -215,17 +134,16 @@ nb_status nb_update_window()
 {
     static u32 key_stack[NB_KEY_COUNT] = {0};
     static i16 key_stack_index         = -1;
-    static SDL_Event event;
-
+    
     //if a key was previously down. push, then next frame set to hold
     while(key_stack_index > -1)
     {
         u32 prev_key = key_stack[key_stack_index];
-        switch(_keys[prev_key])
+        switch(nb_get_native_keystate(prev_key))
         {
             case  NB_KEYPRESS:   
             {
-                _keys[prev_key] = NB_KEYDOWN;  
+                nb_set_native_keystate(prev_key, NB_KEYDOWN);      
             }
             break;
         }
@@ -233,6 +151,7 @@ nb_status nb_update_window()
         key_stack_index--;
     }
 
+    static SDL_Event event;
     //handle input events
     while (SDL_PollEvent(&event))
     {
@@ -249,24 +168,23 @@ nb_status nb_update_window()
 
             case  SDL_KEYUP: 
             {
-                _keys[event.key.keysym.sym] = NB_KEYUP;
+                nb_set_native_keystate(event.key.keysym.sym, NB_KEYUP);
             }
             break;
             case SDL_KEYDOWN:
             {
                 u32 key = key_stack[++key_stack_index] = event.key.keysym.sym; 
-                if(_keys[key] != NB_KEYDOWN)
+                if(nb_get_native_keystate(key) != NB_KEYDOWN)
                 {
-                    _keys[key] = NB_KEYPRESS;      
+                    nb_set_native_keystate(key, NB_KEYPRESS);      
                 }
             }
             break;
         }
     }
-
     SDL_GL_SwapWindow(_sdl_window);
-    nb_clear_window();
 
+    nb_clear_window();
     nb_timer_tick(&_fps_timer); 
     if(_fps_cap != -1 && nb_fpms() < _fpms_cap)
     {
@@ -275,7 +193,11 @@ nb_status nb_update_window()
     return NB_SUCCESS;
 }
 
-
+void nb_get_mouse_xy(u16 *x, u16 * y)
+{
+    *x = _mouse.x;
+    *y = _mouse.y;
+}
 
 /////------------------------------ End Window
 

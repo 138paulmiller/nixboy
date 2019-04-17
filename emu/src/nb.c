@@ -101,7 +101,7 @@ void        nb_startup(nb_settings * settings)
     {
         fatal_error("Failed to Initalize nixboy. null settings!")
     }
-_settings = settings;
+    _settings = settings;
 
     u32 width  =    settings->screen.width;
     u32 height =    settings->screen.height;
@@ -264,8 +264,7 @@ void        nb_set_sprite_atlas(byte * indices)
     sprite_atlas_block_size = _nb.sprite_atlas_resolution.x * _nb.sprite_atlas_resolution.y * sizeof(byte);
     
 
-    memcpy(_nb.sprite_atlas_indices, indices, 
-      sprite_atlas_block_size);
+    memcpy(_nb.sprite_atlas_indices, indices,  sprite_atlas_block_size);
     //_nb.sprite_atlas_indices = color_indices;
     nb_init_atlas(
         &_nb.sprite_atlas, 
@@ -322,3 +321,5 @@ void        nb_remove_sprite(nb_sprite * sprite)
 {
     nb_destroy_sprite(sprite); //set sheet to null, no longer renderable    
 }
+
+

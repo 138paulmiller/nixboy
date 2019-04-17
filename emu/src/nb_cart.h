@@ -1,4 +1,4 @@
-#include "nb_def.h"
+#include "nb_defs.h"
 
 #define NB_CODE_SEGMENT_SIZE    32768 /*32k bytes*/
 /*
@@ -18,14 +18,12 @@ xMemory Bank
 */
 typedef struct nb_bank
 {
-
-    byte * level_palette;  		//  
-    byte * level_atlas;   	//   
-    byte * level_map;     	// 
+    byte * palette;       //  Color palette
  
-    byte * sprite_palette;       //  
-    byte * sprite_atlas;   	//   
-    byte * sprite_map;     	// 
+    byte * level_atlas;     //   "Super Texture" that compactly contains all tiles
+    byte * level_map;       //  Level is maps from and index value to a tile in the atlas
+ 
+    byte * sprite_atlas;   	//"Super" Texture that compactly contains all sprites.    
 
 } nb_bank;
 
