@@ -19,7 +19,7 @@ typedef uint32_t    u32;
 typedef int16_t     i16;
 typedef int32_t     i32;
 //char string 
-typedef uint8_t  *     str ;
+typedef uint8_t  *    str ;
 //wide char string  TODO
 //typedef uint16_t  *    wstr;
 
@@ -35,11 +35,7 @@ typedef enum nb_status
 
 typedef struct rgb
 {
-    union
-    {
-        struct {byte  r,g,b;};
         byte      data[3];
-    };        
 }rgb;
 
 typedef struct vec2b
@@ -62,9 +58,13 @@ typedef struct vec3i
     i32  x,y,z;        
 }vec3i;
 
+
+#define clamp( x, a, b) ( ((x) < (a)) ? (a) : (((x) > (b)) ? (b) : (x)))
+    
+
 //TODO Flush 
 //Create a logging system with varying severities. Fatal crashes
-#define nb_error(...) 	{printf("Error at %s : %d\n",__FILE__,  __LINE__);printf(__VA_ARGS__);exit(-1);	}
+#define nb_error(...) 	{printf("Error at %s : %d\n",__FILE__,  __LINE__);printf(__VA_ARGS__);	}
 #define nb_warn(...) 	{printf("Warn:"__VA_ARGS__);				}
 #define nb_debug(...)    {printf("Debug:"__VA_ARGS__);                }
 

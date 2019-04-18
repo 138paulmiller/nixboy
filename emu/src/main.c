@@ -15,10 +15,10 @@
 #define DEFAULT_TILE_ATLAS_HEIGHT    128  
 
 #define DEFAULT_SCREEN_WIDTH         100  
-#define DEFAULT_SCREEN_HEIGHT        60 
+#define DEFAULT_SCREEN_HEIGHT        60
 
 #define DEFAULT_COLOR_DEPTH          255
-#define DEFAULT_SCALE                10 
+#define DEFAULT_SCALE                10
 
 #define DEFAULT_MAX_SPRITE_COUNT     256
 
@@ -29,8 +29,8 @@ int main(int argc, char ** argv)
 {
     //should load  data from from cart
     rgb  default_palette_colors[DEFAULT_PALETTE_SIZE] = {
-#include "grayscale_palette.inl"
-//#include "default_palette.inl"
+//#include "grayscale_palette.inl"
+#include "default_palette.inl"
     };
 
 
@@ -92,7 +92,7 @@ int main(int argc, char ** argv)
     nb_status status;
 
 
-    float offsetx, offsety;
+    float offsetx=0, offsety=0;
     u32 fps_cap = 200;
     nb_cap_fps(fps_cap);
 
@@ -106,10 +106,29 @@ int main(int argc, char ** argv)
         set_flag(flags , NB_FLAG_PALETTE_DIRTY);
      
         //on key press. TODO Create an event callback?   
-        if(nb_get_keystate(NB_q) == NB_KEYPRESS)
+        if(nb_get_keystate(NB_w) == NB_KEYPRESS)
         {
-            sprite1->offset.x +=1;            
+            offsety +=1;
+        }   
+        if(nb_get_keystate(NB_s) == NB_KEYPRESS)
+        {
+            offsety -=1;            
+        }
+        if(nb_get_keystate(NB_d) == NB_KEYPRESS)
+        {
+            offsetx +=1;            
         }        
+        if(nb_get_keystate(NB_a) == NB_KEYPRESS)
+        {
+            offsetx -=1;            
+        }
+        offsetx = clamp(offsetx, 0,  DEFAULT_PALETTE_SIZE - DEFAULT_SPRITE_SIZE);
+        offsety = clamp(offsety, 0,  DEFAULT_PALETTE_SIZE - DEFAULT_SPRITE_SIZE);           
+        
+        sprite1->offset.x = offsetx;
+        sprite1->offset.y = offsety;
+        
+        
         nb_draw(  flags  );
     } 
 

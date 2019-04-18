@@ -134,7 +134,7 @@ typedef struct nb_state
 	//Data segments. Owningg pointers!
     rgb  * palette_colors;
     byte * sprite_atlas_indices;
-    nb_sprite * sprite_block;
+    nb_sprite * sprite_table;
 
     //cache vars
 	//cache 
@@ -142,9 +142,11 @@ typedef struct nb_state
 	vec2i sprite_atlas_resolution;
 	vec2i tile_atlas_resolution;
 
-    u32 sprite_block_size; //size of sprite object buffer
-    u32 sprite_size;
-	u32 palette_size ;
+    u32 sprite_table_size; //max number of sprites 
+    u32 sprite_size;		//dimensions of sprite in pixels
+	u32 palette_size ;		//dwisth of palette in colors
+	u32 color_depth;
+	u32 screen_scale;
 
 }nb_state;
 
@@ -185,8 +187,8 @@ void 		nb_shutdown();
 
 
 //Copies data over into memory
-void        nb_set_palette(rgb * colors);
-rgb *       nb_get_palette();
+void        nb_set_sprite_palette(rgb * colors);
+rgb *       nb_get_sprite_palette();
 
 //Copies data over into memory
 void        nb_set_sprite_atlas(byte * color_indices);
@@ -194,8 +196,8 @@ byte *      nb_get_sprite_atlas();
 
 
 //Copies data over into memory
-void        nb_set_tile_atlas(byte * color_indices);
-byte *      nb_get_tile_atlas();
+//void        nb_set_tile_atlas(byte * color_indices);
+//byte *      nb_get_tile_atlas();
 
 
 
@@ -213,7 +215,6 @@ void 		nb_remove_sprite(  nb_sprite * sprite);
 //void nb_init_palette(nb_palette * palette);
 
 //Update the palettes texture .
-//void nb_update_palette(nb_palette * palette);
 
 
 #endif // NIXBOY_H

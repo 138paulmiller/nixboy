@@ -301,12 +301,12 @@ void nb_timer_tick(nb_timer * timer)
     if(shader->vert_loc == -1)
     {
         nb_error("GFX Invalid name for Position Attrib: Expected %s", NB_ATTRIB_VERT);
-        return NB_FAILURE;
+        //return NB_FAILURE;
     }
     if(shader->uv_loc == -1)
     {
         nb_error("GFX Invalid name for UV Attrib: Expected %s", NB_ATTRIB_UV);
-        return NB_FAILURE;
+       // return NB_FAILURE;
     }
 
 
@@ -330,15 +330,16 @@ void    nb_bind_shader(nb_shader * shader)
 
     if(_active_shader != shader)
     {
-        _active_shader = shader;
     #ifdef DEBUG
         glValidateProgram(shader->program);
         if(_check_shader_error(shader->program, GL_VALIDATE_STATUS, 1) == NB_FAILURE)
         {
+            nb_error("Trying to bind invalid shader!\n")
             return ;
         }
     #endif
 
+        _active_shader = shader;
         glUseProgram(shader->program); //Attaching shaders    
     }
     
@@ -424,6 +425,8 @@ void nb_destroy_mesh(nb_mesh * mesh)
 }
 void nb_render_mesh(nb_mesh * mesh)
 {
+
+
     glBindVertexArray(mesh->vao);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
     glDrawArrays(GL_TRIANGLES, 0,  mesh->num_verts);
@@ -434,7 +437,9 @@ void nb_render_mesh(nb_mesh * mesh)
 // ----------------------------------------------------- Texture ---------------------------------------------------
 void nb_bind_texture(u32 texture_location, nb_texture * texture)
 {
+    //set uniform value to location of    
     u32 tex_unit = GL_TEXTURE0+texture_location;
+
     glActiveTexture(tex_unit);
     glBindTexture(texture->type, texture->handle);
 }
@@ -446,7 +451,7 @@ nb_status  nb_init_texture(u32 texture_location, nb_texture * texture, nb_textur
     texture->height = height;
     texture->data = data;
 
-    i32 format, internal_format; 
+    u32 format, internal_format; 
     texture->format = data_format;
     switch(data_format)
     {
@@ -487,25 +492,40 @@ nb_status  nb_init_texture(u32 texture_location, nb_texture * texture, nb_textur
     }
 
     glGenTextures(1, &texture->handle);
-    glBindTexture(texture->type, texture->handle);
-
-    //nb_bind_texture(texture_location, texture);
-    
+    nb_bind_texture(texture_location, texture);
+        
     glTexParameteri(texture->type, GL_TEXTURE_WRAP_S,   GL_REPEAT);
     glTexParameteri(texture->type, GL_TEXTURE_WRAP_T,   GL_REPEAT);
     glTexParameteri(texture->type, GL_TEXTURE_MIN_FILTER,   GL_NEAREST);
     glTexParameteri(texture->type, GL_TEXTURE_MAG_FILTER,   GL_NEAREST);
 
-
-    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+   // glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
 
     switch(type)
     {
+
         case  NB_TEXTURE_1D: 
-            glTexImage1D(texture->type, 0, internal_format, width, 0, format, GL_UNSIGNED_BYTE, data);
+            glTexImage1D(texture->type, //
+                0,                      //level
+                internal_format,            
+                width,                 
+                0,                      //border
+                format,                 //
+                GL_UNSIGNED_BYTE,       //data format 
+                data                    
+            );
         break;
         case NB_TEXTURE_2D: 
-            glTexImage2D(texture->type, 0, internal_format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+
+            glTexImage2D(texture->type, //
+                0,                      //level
+                internal_format,            
+                width, height,                 
+                0,                      //border
+                format,                 //
+                GL_UNSIGNED_BYTE,       //data format 
+                data                    
+            );
         break;
         default:
             nb_error("GFX: load texture : invalid texture type(%d)",type);
@@ -524,13 +544,15 @@ void nb_update_texture(u32 texture_location, nb_texture * texture, int x, int y,
 {
 
     nb_bind_texture(texture_location, texture);
-    glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
+  //  glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
     glTexSubImage2D(texture->type, 0,x,y,width,height,texture->format, GL_UNSIGNED_BYTE, texture->data);
-    //float border_color[] = { 1.0, 1.0, 1.0 };
-    //glTexParameterfv(texture->type, GL_TEXTURE_BORDER_COLOR, border_color);
 
 }
+void nb_destroy_texture(nb_texture * texture)
+{
 
+    glDeleteTextures(1, &texture->handle);
+}
 // ------------------------------------- Rect -------------------------------------------
 nb_status  nb_init_rect(nb_rect * rect, nb_shader * shader, float x, float y, float w, float h)
 {
@@ -575,7 +597,7 @@ void  nb_render_rect(nb_rect * rect)
 
 // ------------ GFX Palette -----------------------
 
-void        nb_init_palette(nb_palette *palette, rgb * data, u32 width, u32 height)
+void        nb_init_palette(nb_palette *palette, rgb * data, u32 width)
 {
 
     nb_status status = nb_init_texture(    
@@ -583,8 +605,8 @@ void        nb_init_palette(nb_palette *palette, rgb * data, u32 width, u32 heig
                             &palette->texture, 
                             NB_TEXTURE_1D,
                             NB_RGB8,
-                            &data->data[0],
-                            width, height);
+                            (byte*)&(data->data[0]),
+                            width, 1);
     if(status == NB_FAILURE)
     {
         nb_error("Failed to init palette texture");
@@ -607,8 +629,8 @@ void        nb_update_palette(nb_palette *palette)
 void        nb_destroy_palette(nb_palette * palette)
 {
     if(! palette) return;
-
     palette->data=0;
+    nb_destroy_texture(&palette->texture);
 }
 
 
@@ -634,9 +656,11 @@ void        nb_init_atlas(nb_atlas * atlas, byte * indices, u32 width, u32 heigh
 
 void        nb_destroy_atlas(nb_atlas * atlas)
 {
-    if(atlas)
-        atlas->indices =0 ;
-//    nb_free(atlas->indices);
+    //destroy texture
+    if(!atlas) return;
+
+     atlas->indices =0 ;
+    nb_destroy_texture(&atlas->texture);
 }
 
 void        nb_update_atlas(nb_atlas *atlas)

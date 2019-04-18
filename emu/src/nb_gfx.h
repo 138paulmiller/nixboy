@@ -15,18 +15,19 @@ Tile based sprite renderer
 #define NB_ATTRIB_UV                   "in_uv"
 #define NB_UNIFORM_POS                 "pos"
 #define NB_UNIFORM_SIZE                "size"
-#define NB_UNIFORM_SCALE               "scale"
+#define NB_UNIFORM_SCREEN_SCALE        "screen_scale"
 #define NB_UNIFORM_SCREEN_RESOLUTION   "screen_resolution"
 #define NB_UNIFORM_ATLAS               "atlas"
 #define NB_UNIFORM_PALETTE             "palette"
 //atlas offset for sprites/tiles 
+
 #define NB_UNIFORM_OFFSET              "offset"
 #define NB_UNIFORM_PALETTE_SIZE        "palette_size"
 #define NB_UNIFORM_ATLAS_RESOLUTION    "atlas_resolution"
 #define NB_UNIFORM_COLOR_DEPTH         "color_depth"
 
-#define NB_TEXTURE_UNIT_PALETTE     0
-#define NB_TEXTURE_UNIT_ATLAS      1
+#define NB_TEXTURE_UNIT_PALETTE     1
+#define NB_TEXTURE_UNIT_ATLAS      0
 
 
 // 
@@ -70,6 +71,7 @@ typedef struct nb_shader
     u32 vert_shader;
     u32 frag_shader;
     u32 program;
+
     //vbo locations
     u32 vert_loc;
     u32 uv_loc;
@@ -225,6 +227,7 @@ void        nb_update_texture( u32 texture_location,
                                 int x, int y, 
                                 int width, int height);
 
+void nb_destroy_texture      ( nb_texture * texture);
 // --------- GFX Rect ----- 
 nb_status  nb_init_rect(nb_rect * rect, nb_shader * shader, float x, float y, float w, float h);
 
@@ -235,8 +238,7 @@ void        nb_render_rect(nb_rect * rect);
 // ------------ GFX Palette -----------------------
 void        nb_init_palette   (nb_palette *palette, 
                                 rgb * data,
-                                u32 width, 
-                                u32 height);
+                                u32 width);
 
 void        nb_destroy_palette(nb_palette *palette);
 
