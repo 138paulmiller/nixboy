@@ -80,12 +80,13 @@ typedef struct nb_shader
 
 typedef struct nb_texture
 {
-    u32 handle;          //texture object handle
     u32 width, height;  //Dimension of texture data
     byte * data;        //weak, nonowning ref to pixel data
     //correspond to nb_type and nb_format but contain the GL  equivalent
+    // gl specific vars
+    u32 handle;          //texture object handle
     u32  type;     
-    u32 format;   
+    u32 format, internal_format;
 } nb_texture ;
 
 typedef struct nb_vertex

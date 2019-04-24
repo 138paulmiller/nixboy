@@ -445,31 +445,35 @@ void nb_bind_texture(u32 texture_location, nb_texture * texture)
 }
 
 
-nb_status  nb_init_texture(u32 texture_location, nb_texture * texture, nb_texture_type type, nb_format data_format, byte  * data, int width, int height)
+nb_status  nb_init_texture( u32 texture_location, 
+                            nb_texture * texture, 
+                            nb_texture_type type, 
+                            nb_format data_format, 
+                            byte  * data, 
+                            int width, 
+                            int height)
 { 
     texture->width = width;
     texture->height = height;
     texture->data = data;
-
-    u32 format, internal_format; 
-    texture->format = data_format;
+ 
     switch(data_format)
     {
         case NB_RGBA8: 
-            format          = GL_RGBA_INTEGER;  
-            internal_format = GL_RGBA8UI;  
+            texture->format          = GL_RGBA_INTEGER;  
+            texture->internal_format = GL_RGBA8UI;  
         break;
         case NB_RGB8: 
-            format          = GL_RGB_INTEGER;  
-            internal_format = GL_RGB8UI;  
+            texture->format          = GL_RGB_INTEGER;  
+            texture->internal_format = GL_RGB8UI;  
         break;
         case NB_RG8: 
-            format          = GL_RG_INTEGER;
-            internal_format = GL_RG8UI;
+            texture->format          = GL_RG_INTEGER;
+            texture->internal_format = GL_RG8UI;
         break;
         case NB_R8: 
-            format          = GL_RED_INTEGER;
-            internal_format = GL_R8UI;
+            texture->format          = GL_RED_INTEGER;
+            texture->internal_format = GL_R8UI;
         break;
         default:
             nb_error("GFX: load texture : invalid in format  (%d)",data_format);
@@ -499,30 +503,32 @@ nb_status  nb_init_texture(u32 texture_location, nb_texture * texture, nb_textur
     glTexParameteri(texture->type, GL_TEXTURE_MIN_FILTER,   GL_NEAREST);
     glTexParameteri(texture->type, GL_TEXTURE_MAG_FILTER,   GL_NEAREST);
 
-   // glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
 
     switch(type)
     {
 
         case  NB_TEXTURE_1D: 
-            glTexImage1D(texture->type, //
+            glTexImage1D(
+                texture->type, //
                 0,                      //level
-                internal_format,            
+                texture->internal_format,            
                 width,                 
                 0,                      //border
-                format,                 //
+                texture->format,                 //
                 GL_UNSIGNED_BYTE,       //data format 
                 data                    
             );
         break;
         case NB_TEXTURE_2D: 
 
-            glTexImage2D(texture->type, //
+            glTexImage2D(
+                texture->type, //
                 0,                      //level
-                internal_format,            
+                texture->internal_format,            
                 width, height,                 
                 0,                      //border
-                format,                 //
+                texture->format,                 //
                 GL_UNSIGNED_BYTE,       //data format 
                 data                    
             );
@@ -544,8 +550,25 @@ void nb_update_texture(u32 texture_location, nb_texture * texture, int x, int y,
 {
 
     nb_bind_texture(texture_location, texture);
-  //  glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
-    glTexSubImage2D(texture->type, 0,x,y,width,height,texture->format, GL_UNSIGNED_BYTE, texture->data);
+    glPixelStorei( GL_UNPACK_ALIGNMENT, 1);
+
+    switch(texture->type)
+    {
+        case  GL_TEXTURE_1D: 
+            glTexSubImage1D(texture->type, 0,x,width,texture->format, GL_UNSIGNED_BYTE, texture->data);
+
+        break;
+        case GL_TEXTURE_2D: 
+            glTexSubImage2D(texture->type, 0,x,y,width,height,texture->format, GL_UNSIGNED_BYTE, texture->data);
+       break;
+        default:
+            nb_error("GFX: load texture : invalid texture type(%d)",texture->type);
+            return;
+        break;
+    }
+
+
+    
 
 }
 void nb_destroy_texture(nb_texture * texture)
@@ -622,7 +645,8 @@ void        nb_use_palette(nb_palette *palette )
 
 void        nb_update_palette(nb_palette *palette)
 {
-    nb_update_texture( NB_TEXTURE_UNIT_PALETTE, &palette->texture,0,0, palette->texture.width, palette->texture.height);
+    nb_update_texture( NB_TEXTURE_UNIT_PALETTE,
+         &palette->texture,0,0, palette->texture.width, palette->texture.height);
 }
 //if data changes
 

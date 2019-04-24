@@ -121,6 +121,8 @@ typedef struct nb_state
 {
 
 	//************** gfx state
+	struct
+	{
 
 		nb_shader   sprite_shader;
 			//TODO
@@ -131,22 +133,39 @@ typedef struct nb_state
 		nb_atlas tile_atlas;
 
 		nb_palette palette;
+	} gfx;
+	
 	//Data segments. Owningg pointers!
-    rgb  * palette_colors;
-    byte * sprite_atlas_indices;
-    nb_sprite * sprite_table;
+    
+    struct
+    {
+    	rgb  * palette_colors;
+    	byte * sprite_atlas_indices;
+    	nb_sprite * sprite_table;
+    } ram;
 
-    //cache vars
-	//cache 
-	vec2i screen_resolution;
-	vec2i sprite_atlas_resolution;
-	vec2i tile_atlas_resolution;
+    struct
+    {
 
-    u32 sprite_table_size; //max number of sprites 
-    u32 sprite_size;		//dimensions of sprite in pixels
-	u32 palette_size ;		//dwisth of palette in colors
-	u32 color_depth;
-	u32 screen_scale;
+		//cache vars
+		u32 sprite_table_size; //max number of sprites 
+		u32 sprite_size; //number of pixels along sprite width|height 
+		////////////////// 	uniforms /////////////////// 
+		vec2i screen_resolution;
+		vec2i sprite_atlas_resolution;
+		vec2i tile_atlas_resolution;
+
+		u32 palette_size ;		//dwisth of palette in colors
+		u32 color_depth;
+		u32 screen_scale;
+		//////////////////////// ram sizes cache ////////////////
+		u32 sprite_table_block_size;
+	    u32 palette_block_size     ;
+	    u32 sprite_atlas_block_size;
+	    u32 tile_atlas_block_size ;
+
+
+    } cache;
 
 }nb_state;
 
@@ -165,8 +184,8 @@ nb_status 	nb_update();
 
 
 
-#define test_flag(flags,pos) ( (flags) & (1<<pos ) )
-#define set_flag(flags,pos) (flags |= (1>> pos));
+#define nb_test(flags,pos) (( (flags) & (1<<pos ) )>>pos)
+#define nb_flag(flags,pos) ( (flags) = (flags) | (1<<pos));
 
 
 typedef enum nb_flags
@@ -187,8 +206,8 @@ void 		nb_shutdown();
 
 
 //Copies data over into memory
-void        nb_set_sprite_palette(rgb * colors);
-rgb *       nb_get_sprite_palette();
+void        nb_set_palette(rgb * colors);
+rgb *       nb_get_palette();
 
 //Copies data over into memory
 void        nb_set_sprite_atlas(byte * color_indices);

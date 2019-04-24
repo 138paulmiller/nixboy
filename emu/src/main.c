@@ -65,7 +65,6 @@ int main(int argc, char ** argv)
         }
     } ;
 
-
     //parse command line options, modify settings
     nb_debug("Starting nixboy\n");
     nb_startup(&settings);
@@ -96,15 +95,15 @@ int main(int argc, char ** argv)
     u32 fps_cap = 200;
     nb_cap_fps(fps_cap);
 
+    rgb color = {0,0,0};
+    u32 color_i = 0;
 
     nb_debug("Starting machine \n");
 
+    u32 draw_flags; 
     while( NB_CONTINUE ==  (status = nb_update() ) )
     {   
-        u32 flags =0 ; 
-        set_flag(flags , NB_FLAG_SPRITE_ATLAS_DIRTY);
-        set_flag(flags , NB_FLAG_PALETTE_DIRTY);
-     
+        draw_flags =0 ;
         //on key press. TODO Create an event callback?   
         if(nb_get_keystate(NB_w) == NB_KEYPRESS)
         {
@@ -122,14 +121,30 @@ int main(int argc, char ** argv)
         {
             offsetx -=1;            
         }
+
+
+        if(nb_get_keystate(NB_SPACE) == NB_KEYPRESS)
+        {
+            color_i ++;
+            //nb_debug("color i : %d\n", color_i);
+        }
+        
+        if(nb_get_keystate(NB_r) == NB_KEYDOWN)
+        {
+            color.data[0] ++;
+            color.data[0] = color.data[0] % DEFAULT_COLOR_DEPTH;
+                        
+            nb_get_palette()[color_i].data[0]++;
+            nb_flag(draw_flags , NB_FLAG_PALETTE_DIRTY);
+        }
+
         offsetx = clamp(offsetx, 0,  DEFAULT_PALETTE_SIZE - DEFAULT_SPRITE_SIZE);
         offsety = clamp(offsety, 0,  DEFAULT_PALETTE_SIZE - DEFAULT_SPRITE_SIZE);           
         
         sprite1->offset.x = offsetx;
         sprite1->offset.y = offsety;
         
-        
-        nb_draw(  flags  );
+        nb_draw(  draw_flags  );
     } 
 
     nb_shutdown();
