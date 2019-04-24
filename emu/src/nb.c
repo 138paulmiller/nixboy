@@ -132,6 +132,17 @@ void _load_ram()
     memset(_nb.ram.sprite_atlas_indices, 0, _nb.cache.sprite_atlas_block_size );
 }
 
+void _load_gfx()
+{
+
+    nb_init_palette( &_nb.gfx.palette, _nb.ram.palette_colors,_nb.cache.palette_size);
+    nb_init_atlas(
+        &_nb.gfx.sprite_atlas, 
+        _nb.ram.sprite_atlas_indices, 
+        _nb.cache.sprite_atlas_resolution.x , 
+        _nb.cache.sprite_atlas_resolution.y );
+}
+
 
 //---------------------- nb api --------------------------------
 
@@ -160,7 +171,7 @@ void        nb_startup(nb_settings * settings)
 
     _bind_sprite_shader();
     _update_sprite_shader_cache();
-    
+    _load_gfx();   
 }
 
 nb_status   nb_update()
@@ -262,7 +273,7 @@ void        nb_shutdown()
 void        nb_set_palette(rgb * colors)
 {
     memcpy(_nb.ram.palette_colors, colors, _nb.cache.palette_block_size);
-    nb_init_palette( &_nb.gfx.palette, _nb.ram.palette_colors,_nb.cache.palette_size);
+    nb_update_palette( &_nb.gfx.palette);
 }
 
 rgb *        nb_get_palette()
@@ -274,11 +285,7 @@ rgb *        nb_get_palette()
 void        nb_set_sprite_atlas(byte * indices)
 {
     memcpy(_nb.ram.sprite_atlas_indices, indices,  _nb.cache.sprite_atlas_block_size);
-    nb_init_atlas(
-        &_nb.gfx.sprite_atlas, 
-        _nb.ram.sprite_atlas_indices, 
-        _nb.cache.sprite_atlas_resolution.x , 
-        _nb.cache.sprite_atlas_resolution.y );
+    nb_update_atlas(&_nb.gfx.sprite_atlas);
 }
 
 byte *        nb_get_sprite_atlas()

@@ -26,8 +26,9 @@ Tile based sprite renderer
 #define NB_UNIFORM_ATLAS_RESOLUTION    "atlas_resolution"
 #define NB_UNIFORM_COLOR_DEPTH         "color_depth"
 
-#define NB_TEXTURE_UNIT_PALETTE     1
-#define NB_TEXTURE_UNIT_ATLAS      0
+#define NB_TEXTURE_UNIT_PALETTE     0
+#define NB_TEXTURE_UNIT_ATLAS      1
+#define NB_TEXTURE_UNIT_TILEMAP     2   //R8 texture used for lookups into tile atlas  
 
 
 // 
