@@ -60,9 +60,12 @@ x -----------------------------------End Bankable Memory
 		F  : 1 If Flipped, 0 if not
 
 -------
-2 Shaders
-	Tile Sheet Shader
-	Sprite Shader
+Rendering 
+	Palette      : [ c0 | c1 | .... cT] 
+
+		where ci for i from 0 to T is an RGBA color
+	
+	Sprite Atlas : 
 
 */
 
@@ -101,11 +104,14 @@ typedef struct nb_settings
 	{
 		//gfx settings
 		u16 		palette_size; 
-		u16 		sprite_size; 
+		u16 		sprite_width;  
+		u16 		sprite_height; 
 		u16 		sprite_atlas_width;
 		u16 		sprite_atlas_height; 
 		u16 		tile_atlas_width;
-		u16 		tile_atlas_height; 
+		u16 		tile_atlas_height;  
+		u16 		level_width;
+		u16 		level_height; 
 		u16 		color_depth;
 		u16 		max_sprite_count;
 	}gfx;
@@ -131,16 +137,22 @@ typedef struct nb_state
 		//Maintains references to corresponding palettes and atlas textures 
 		nb_atlas sprite_atlas;
 		nb_atlas tile_atlas;
+		
+		nb_level level;   
 
-		nb_palette palette;
+		nb_palette sprite_palette;
+		nb_palette tile_palette;
 	} gfx;
 	
 	//Data segments. Owningg pointers!
     
     struct
     {
-    	rgb  * palette_colors;
+    	rgb  * tile_palette_colors;
+    	rgb  * sprite_palette_colors;
     	byte * sprite_atlas_indices;
+    	byte * tile_atlas_indices;
+    	byte * level_indices;		//atlas that indexes into tile atlas 
     	nb_sprite * sprite_table;
     } ram;
 
@@ -149,11 +161,12 @@ typedef struct nb_state
 
 		//cache vars
 		u32 sprite_table_size; //max number of sprites 
-		u32 sprite_size; //number of pixels along sprite width|height 
 		////////////////// 	uniforms /////////////////// 
+		vec2i sprite_resolution; //number of pixels along sprite width|height 
 		vec2i screen_resolution;
 		vec2i sprite_atlas_resolution;
 		vec2i tile_atlas_resolution;
+		vec2i level_resolution;
 
 		u32 palette_size ;		//dwisth of palette in colors
 		u32 color_depth;
@@ -163,6 +176,7 @@ typedef struct nb_state
 	    u32 palette_block_size     ;
 	    u32 sprite_atlas_block_size;
 	    u32 tile_atlas_block_size ;
+	    u32 level_block_size ;
 
 
     } cache;
@@ -191,8 +205,11 @@ nb_status 	nb_update();
 typedef enum nb_flags
 {
 	//indicates bit position in flag
-	NB_FLAG_PALETTE_DIRTY 		= 1,
-	NB_FLAG_SPRITE_ATLAS_DIRTY 	= 2
+	NB_FLAG_SPRITE_PALETTE_DIRTY 		= 1,
+	NB_FLAG_TILE_PALETTE_DIRTY 		= 1,
+	NB_FLAG_SPRITE_ATLAS_DIRTY 	= 2,
+	NB_FLAG_TILE_ATLAS_DIRTY 	= 3,
+	NB_FLAG_LEVEL_DIRTY 	= 4
 }
 nb_flags;
 
@@ -206,8 +223,11 @@ void 		nb_shutdown();
 
 
 //Copies data over into memory
-void        nb_set_palette(rgb * colors);
-rgb *       nb_get_palette();
+void        nb_set_tile_palette(rgb * colors);
+rgb *       nb_get_tile_palette();
+
+void        nb_set_sprite_palette(rgb * colors);
+rgb *       nb_get_sprite_palette();
 
 //Copies data over into memory
 void        nb_set_sprite_atlas(byte * color_indices);
@@ -215,8 +235,11 @@ byte *      nb_get_sprite_atlas();
 
 
 //Copies data over into memory
-//void        nb_set_tile_atlas(byte * color_indices);
-//byte *      nb_get_tile_atlas();
+void        nb_set_tile_atlas(byte * color_indices);
+byte *      nb_get_tile_atlas();
+
+void        nb_set_level(byte * level_indices);
+byte *      nb_get_level();
 
 
 

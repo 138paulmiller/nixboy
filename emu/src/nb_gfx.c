@@ -194,9 +194,14 @@ nb_status nb_update_window()
             break;
         }
     }
+    
     SDL_GL_SwapWindow(_sdl_window);
 
     nb_clear_window();
+
+    // enable transprency 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     nb_timer_tick(&_fps_timer); 
     if(_fps_cap != -1 && nb_fpms() < _fpms_cap)
     {
@@ -627,8 +632,8 @@ void        nb_init_palette(nb_palette *palette, rgb * data, u32 width)
                             NB_TEXTURE_UNIT_PALETTE,
                             &palette->texture, 
                             NB_TEXTURE_1D,
-                            NB_RGB8,
-                            (byte*)&(data->data[0]),
+                            NB_RGBA8,
+                            (byte*)data,
                             width, 1);
     if(status == NB_FAILURE)
     {
@@ -735,6 +740,15 @@ void        nb_render_sprite(nb_sprite * sprite)
     }
 }
 
+void        nb_move_sprite ( nb_sprite * sprite,
+                                float  dx,   
+                                float  dy    ) 
+{
+
+    sprite->rect.pos.x += dx;
+    sprite->rect.pos.y += dy;
+
+}
 
 void        nb_get_sprite_xy(nb_sprite * sprite, float * x, float * y )
 {
@@ -742,10 +756,16 @@ void        nb_get_sprite_xy(nb_sprite * sprite, float * x, float * y )
     *y = sprite->rect.pos.y;
 }
 
-void        nb_set_sprite_xy(nb_sprite * sprite, float  x, float  y )
+void        nb_set_sprite_xy(nb_sprite * sprite, float x, float y )
 {
     sprite->rect.pos.x = x;
     sprite->rect.pos.y = y;
+}
+
+void        nb_set_sprite_offset(nb_sprite * sprite, float  offsetx, float offsety )
+{
+    sprite->offset.x = offsetx;
+    sprite->offset.y = offsety;
 }
 
 void        nb_flip_sprite(nb_sprite * sprite, bool flip_x, bool flip_y )
@@ -753,3 +773,54 @@ void        nb_flip_sprite(nb_sprite * sprite, bool flip_x, bool flip_y )
     sprite->flip_x = flip_x;
     sprite->flip_y = flip_y;   
 }
+
+nb_status       nb_init_level     ( nb_level * level,  nb_shader * shader, byte * tilemap_indices, u32 width, u32 height)
+{
+    
+    nb_init_atlas(&level->tilemap, tilemap_indices, width, height);
+
+    //TODO type to determine                                            //
+    nb_status status = nb_init_rect(&level->rect, shader, 0, 0, width, height);
+    if(status == NB_FAILURE)
+    {
+        nb_error("Failed to create sprite object");
+        return NB_FAILURE;
+    } 
+    level->scroll.x=0; 
+    level->scroll.y=0;
+    return NB_SUCCESS;
+}
+
+void        nb_destroy_level  (nb_level * level )
+{
+    if(!level) return;
+
+    nb_destroy_atlas(&level->tilemap);
+    nb_destroy_rect(&level->rect);
+}
+
+void        nb_update_level   (nb_level * level)
+{
+    nb_update_atlas( &level->tilemap); 
+}
+
+
+void        nb_render_level      (nb_level * level)
+{
+    nb_set_uniform_vec2i(level->rect.mesh.shader, NB_UNIFORM_SCROLL, &level->scroll);
+    //sprites reference sader
+    nb_use_atlas(&level->tilemap);
+
+    nb_render_rect(&level->rect);
+}
+
+
+void        nb_scroll_level   (nb_level * level, int dx, int dy )
+{
+    level->scroll.x+=dx; 
+    level->scroll.y+=dy;
+}
+
+
+
+

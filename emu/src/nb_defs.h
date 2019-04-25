@@ -35,7 +35,7 @@ typedef enum nb_status
 
 typedef struct rgb
 {
-    byte    data[3];
+    byte    r,g,b,a;
 }rgb;
 
 typedef struct vec2b

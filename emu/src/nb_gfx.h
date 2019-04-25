@@ -26,11 +26,15 @@ Tile based sprite renderer
 #define NB_UNIFORM_ATLAS_RESOLUTION    "atlas_resolution"
 #define NB_UNIFORM_COLOR_DEPTH         "color_depth"
 
+#define NB_UNIFORM_SCROLL              "scroll"
+
 #define NB_TEXTURE_UNIT_PALETTE     0
 #define NB_TEXTURE_UNIT_ATLAS      1
 #define NB_TEXTURE_UNIT_TILEMAP     2   //R8 texture used for lookups into tile atlas  
 
-
+/****
+Usage To render a Sprites. An initialized palette must be bound. As well as a valid sprite atlas.   
+***/
 // 
 typedef struct nb_mouse
 {   
@@ -135,7 +139,7 @@ typedef struct nb_atlas
 typedef struct nb_sprite
 {
     
-    vec2i offset;           //sheet offset (top left corner to start reading from )
+    vec2i offset;           //sprite atlas offset (top left corner to start reading from )
     //sprites are tiles whose positions are not determined by level map, but an offset
     nb_rect rect; //size determined by type
     bool is_active;
@@ -144,11 +148,13 @@ typedef struct nb_sprite
 } nb_sprite;
 
 
+
 //Rendering level, binds palette, and tile atlas  
 typedef struct nb_level
 {
-    vec2i offset;           
-    nb_atlas * tile_atlas;
+    vec2i scroll; //tilemap offset   
+    nb_rect rect; // quad representin the level          
+    nb_atlas tilemap; //maps from byte to bound tile atlas, draw 
 } nb_level; //TODO
 
 
@@ -268,17 +274,36 @@ void        nb_destroy_sprite( nb_sprite * sprite  ) ;
 
 void        nb_render_sprite ( nb_sprite * sprite  ) ;
 
+void        nb_move_sprite ( nb_sprite * sprite,
+                                float  dx,   
+                                float  dy    ) ;
 void        nb_get_sprite_xy ( nb_sprite * sprite,  
                                 float * x,   
                                 float * y   ) ;
 
+
 void        nb_set_sprite_xy ( nb_sprite * sprite,
                                 float  x,   
-                                float  y    ) ;
+                                float  y) ;
+
+void        nb_set_sprite_offset ( nb_sprite * sprite,
+                                float  offsetx,   
+                                float  offsety    ) ;
 
 void        nb_flip_sprite   (nb_sprite * sprite, 
                                 bool x_flip, 
                                 bool y_flip  ) ;
 
+// ------------ GFX Level  -----------------------
+nb_status   nb_init_level     ( nb_level * level,
+                                nb_shader * shader,
+                                byte * tilemap_indices,
+                                u32 width, 
+                                u32 height);
+
+void        nb_destroy_level  (nb_level * level );
+void        nb_update_level   (nb_level * level ); //if tilemap changes
+void        nb_render_level   (nb_level * level );
+void        nb_scroll_level   (nb_level * level, int dx, int dy );
 
 #endif
