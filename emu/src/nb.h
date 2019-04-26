@@ -81,6 +81,32 @@ Rendering
 
 
 
+
+#define nb_test(flags,pos) (( (flags) & (1<<pos ) )>>pos)
+#define nb_flag(flags,pos) ( (flags) = (flags) | (1<<pos));
+
+
+typedef enum nb_flags
+{
+	//indicates bit position in flag
+	NB_FLAG_SPRITE_PALETTE_DIRTY 		= 0,
+	NB_FLAG_TILE_PALETTE_DIRTY 		= 1,
+	NB_FLAG_SPRITE_ATLAS_DIRTY 	= 2,
+	NB_FLAG_TILE_ATLAS_DIRTY 	= 3,
+	NB_FLAG_LEVEL_DIRTY 	= 4
+}
+nb_flags;
+
+typedef enum nb_shader_index
+{
+	//indicates bit position in flag
+	NB_SPRITE_SHADER = 0,
+	NB_TILE_SHADER,
+	NB_SHADER_COUNT  
+}
+nb_shader_index;
+
+
 //-------------------------- memory defs --------------------------
 
 
@@ -130,18 +156,16 @@ typedef struct nb_state
 	struct
 	{
 
-		nb_shader   sprite_shader;
-			//TODO
-		nb_shader   tile_shader;
-
+		nb_shader   shaders[NB_SHADER_COUNT];
+	
 		//Maintains references to corresponding palettes and atlas textures 
 		nb_atlas sprite_atlas;
 		nb_atlas tile_atlas;
-		
-		nb_level level;   
 
 		nb_palette sprite_palette;
 		nb_palette tile_palette;
+		
+		nb_level level;   
 	} gfx;
 	
 	//Data segments. Owningg pointers!
@@ -194,25 +218,6 @@ void 		nb_startup(nb_settings * settings);
 */
 
 nb_status 	nb_update();
-
-
-
-
-#define nb_test(flags,pos) (( (flags) & (1<<pos ) )>>pos)
-#define nb_flag(flags,pos) ( (flags) = (flags) | (1<<pos));
-
-
-typedef enum nb_flags
-{
-	//indicates bit position in flag
-	NB_FLAG_SPRITE_PALETTE_DIRTY 		= 1,
-	NB_FLAG_TILE_PALETTE_DIRTY 		= 1,
-	NB_FLAG_SPRITE_ATLAS_DIRTY 	= 2,
-	NB_FLAG_TILE_ATLAS_DIRTY 	= 3,
-	NB_FLAG_LEVEL_DIRTY 	= 4
-}
-nb_flags;
-
 
 
 /* - 	render state */

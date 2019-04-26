@@ -1,6 +1,1 @@
-build/
-*.exe
-*.VC.db
-*.VC.VC.opendb
-*.vcxproj.user
-temp/*
+build

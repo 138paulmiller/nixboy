@@ -57,56 +57,57 @@ static void _load_shader(nb_shader * shader,  const str vert_filepath, const str
     nb_debug("Done\n");
 }
 
-
-void _bind_sprite_shader()
+void _bind_shader(nb_shader_index shader_index, bool update_cache)
 {
-    nb_bind_shader(&_nb.gfx.sprite_shader);
-    nb_use_palette(&_nb.gfx.sprite_palette);
-    nb_use_atlas  (&_nb.gfx.sprite_atlas);
-}
+    //not thread safe
+    static nb_shader * shader;
+    shader = &_nb.gfx.shaders[shader_index];
+    nb_bind_shader(shader);
+    switch(shader_index)
+    {
+        case NB_SPRITE_SHADER:
+        {
+            nb_use_palette(&_nb.gfx.sprite_palette);
+            nb_use_atlas  (&_nb.gfx.sprite_atlas);
+            //set indeices for texture units        
+            if(update_cache)
+            {
 
-void _update_sprite_shader_cache()
-{
-    //set indeices for texture units        
-    nb_set_uniform_int(&_nb.gfx.sprite_shader   , NB_UNIFORM_ATLAS     ,    NB_TEXTURE_UNIT_ATLAS      );
-    nb_set_uniform_int(&_nb.gfx.sprite_shader   , NB_UNIFORM_PALETTE   ,    NB_TEXTURE_UNIT_PALETTE    );
+                nb_set_uniform_int(shader   , NB_UNIFORM_ATLAS     ,    NB_TEXTURE_UNIT_ATLAS      );
+                nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE   ,    NB_TEXTURE_UNIT_PALETTE    );
 
-    nb_set_uniform_vec2i(&_nb.gfx.sprite_shader , NB_UNIFORM_SCREEN_RESOLUTION  ,  &_nb.cache.screen_resolution       );
-    nb_set_uniform_vec2i(&_nb.gfx.sprite_shader , NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.cache.sprite_atlas_resolution );
+                nb_set_uniform_vec2i(shader, NB_UNIFORM_SCREEN_RESOLUTION  ,  &_nb.cache.screen_resolution       );
+                nb_set_uniform_vec2i(shader, NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.cache.sprite_atlas_resolution );
+                
+                nb_set_uniform_int(shader   , NB_UNIFORM_SCREEN_SCALE        ,  _nb.cache.screen_scale);
+                nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE_SIZE        ,  _nb.cache.palette_size );
+                nb_set_uniform_int(shader   , NB_UNIFORM_COLOR_DEPTH         ,  _nb.cache.color_depth);    
+            }
+        }
+        break;
+        case NB_TILE_SHADER:
+        {
+            nb_use_palette(&_nb.gfx.tile_palette);
+            nb_use_atlas  (&_nb.gfx.tile_atlas);
+            if(update_cache)
+            {
+                //set indeices for texture units        
+                nb_set_uniform_int(shader   , NB_UNIFORM_ATLAS     ,    NB_TEXTURE_UNIT_ATLAS      );
+                nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE   ,    NB_TEXTURE_UNIT_PALETTE    );
+
+                nb_set_uniform_vec2i(shader, NB_UNIFORM_SCREEN_RESOLUTION  ,  &_nb.cache.screen_resolution       );
+                nb_set_uniform_vec2i(shader, NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.cache.sprite_atlas_resolution );
+                
+                nb_set_uniform_int(shader   , NB_UNIFORM_SCREEN_SCALE        ,  _nb.cache.screen_scale);
+                nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE_SIZE        ,  _nb.cache.palette_size );
+                nb_set_uniform_int(shader   , NB_UNIFORM_COLOR_DEPTH         ,  _nb.cache.color_depth);
+            }
+        }
+        break;
     
-    nb_set_uniform_int(&_nb.gfx.sprite_shader   , NB_UNIFORM_SCREEN_SCALE        ,  _nb.cache.screen_scale);
-    nb_set_uniform_int(&_nb.gfx.sprite_shader   , NB_UNIFORM_PALETTE_SIZE        ,  _nb.cache.palette_size );
-    nb_set_uniform_int(&_nb.gfx.sprite_shader   , NB_UNIFORM_COLOR_DEPTH         ,  _nb.cache.color_depth);
-    //draw each sprite and draw! 
+
+    }
 }
-
-
-_bind_tile_shader()
-{
-
-    nb_bind_shader(&_nb.gfx.tile_shader);
-    nb_use_palette(&_nb.gfx.tile_palette);
-    nb_use_atlas  (&_nb.gfx.tile_atlas);
-
-}
-_update_tile_shader_cache()
-{
-
-    //set indeices for texture units        
-    nb_set_uniform_int(&_nb.gfx.tile_shader   , NB_UNIFORM_ATLAS     ,    NB_TEXTURE_UNIT_ATLAS      );
-    nb_set_uniform_int(&_nb.gfx.tile_shader   , NB_UNIFORM_PALETTE   ,    NB_TEXTURE_UNIT_PALETTE    );
-
-    nb_set_uniform_vec2i(&_nb.gfx.tile_shader , NB_UNIFORM_SCREEN_RESOLUTION  ,  &_nb.cache.screen_resolution       );
-    nb_set_uniform_vec2i(&_nb.gfx.tile_shader , NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.cache.sprite_atlas_resolution );
-    
-    nb_set_uniform_int(&_nb.gfx.tile_shader   , NB_UNIFORM_SCREEN_SCALE        ,  _nb.cache.screen_scale);
-    nb_set_uniform_int(&_nb.gfx.tile_shader   , NB_UNIFORM_PALETTE_SIZE        ,  _nb.cache.palette_size );
-    nb_set_uniform_int(&_nb.gfx.tile_shader   , NB_UNIFORM_COLOR_DEPTH         ,  _nb.cache.color_depth);
-    //draw each sprite and draw! 
-
-}
-
-
 
 void _load_cache(nb_settings * settings)
 {
@@ -163,7 +164,8 @@ void _load_ram()
 void _load_gfx()
 {
     nb_debug("Initializing GFX Modules\n");
-    _bind_sprite_shader();
+    _bind_shader(NB_SPRITE_SHADER, 0);
+
     nb_init_palette( &_nb.gfx.sprite_palette, _nb.ram.sprite_palette_colors,_nb.cache.palette_size);
     nb_init_atlas(
         &_nb.gfx.sprite_atlas, 
@@ -173,7 +175,8 @@ void _load_gfx()
 
 
     nb_debug("Initializing Tile Atlas\n");
-    _bind_tile_shader();
+    _bind_shader(NB_TILE_SHADER, 0);
+    
     nb_init_palette( &_nb.gfx.tile_palette, _nb.ram.tile_palette_colors,_nb.cache.palette_size);
     nb_init_atlas(
         &_nb.gfx.tile_atlas, 
@@ -183,7 +186,7 @@ void _load_gfx()
 
     nb_init_level(
         &_nb.gfx.level,
-        &_nb.gfx.tile_shader, 
+        &_nb.gfx.shaders[NB_TILE_SHADER], 
         _nb.ram.level_indices, 
         _nb.cache.level_resolution.x , 
         _nb.cache.level_resolution.y );
@@ -212,14 +215,8 @@ void        nb_startup(nb_settings * settings)
     _load_ram();
     
     //  ---------------------- Compile Shaders -------------------
-    _load_shader(&_nb.gfx.sprite_shader, "res/sprite.vert","res/sprite.frag");
-    _load_shader(&_nb.gfx.tile_shader, "res/tile.vert","res/tile.frag");
-
-//    _bind_sprite_shader();
-//    _update_sprite_shader_cache();
-//
-//    _bind_tile_shader();
-//    _update_tile_shader_cache();
+    _load_shader(&_nb.gfx.shaders[NB_SPRITE_SHADER], "res/sprite.vert","res/sprite.frag");
+    _load_shader(&_nb.gfx.shaders[NB_TILE_SHADER], "res/tile.vert","res/tile.frag");
 
     _load_gfx();   
 }
@@ -254,8 +251,8 @@ nb_status   nb_draw(u32 flags)
 //        nb_set_sprite_xy(&sprite0, x, y);
     static int sprite_index ;
     static nb_sprite * sprite;
-
-    //  ---------------------------- draw tilemap -------------------
+//  ---------------------------- handle input -------------------
+    
     //update an
     if( nb_test(flags, NB_FLAG_SPRITE_PALETTE_DIRTY))
     {
@@ -277,16 +274,11 @@ nb_status   nb_draw(u32 flags)
         nb_update_level(&_nb.gfx.level);
     }
 
-
-     _bind_tile_shader();
-    _update_tile_shader_cache();
-
+    //  ---------------------------- draw tilemap -------------------
+    _bind_shader(NB_TILE_SHADER, 1);
     nb_render_level(&_nb.gfx.level);   
-
-
-
-     _bind_sprite_shader();
-    _update_sprite_shader_cache();
+    /////////////////////////////////
+    _bind_shader(NB_SPRITE_SHADER , 1);
       //---------------------- draw sprites --------------------------------
     sprite_index  = 0;
     for(sprite_index=0; sprite_index    < _nb.cache.sprite_table_size; sprite_index++)
@@ -342,8 +334,8 @@ void        nb_shutdown()
     nb_destroy_atlas  ( & _nb.gfx.tile_atlas   );
     nb_destroy_atlas  ( & _nb.gfx.sprite_atlas );
     //destroy shader 
-    nb_destroy_shader( & _nb.gfx.sprite_shader );
-    nb_destroy_shader( & _nb.gfx.tile_shader   );
+    nb_destroy_shader( & _nb.gfx.shaders[NB_SPRITE_SHADER] );
+    nb_destroy_shader( & _nb.gfx.shaders[NB_TILE_SHADER]   );
 
     nb_destroy_window(); 
 
@@ -436,7 +428,7 @@ nb_sprite *  nb_add_sprite( nb_sprite_type type, int index)
     }
 
 
-    nb_init_sprite(sprite, &_nb.gfx.sprite_shader, offset, size);
+    nb_init_sprite(sprite, &_nb.gfx.shaders[NB_SPRITE_SHADER], offset, size);
 
     return  sprite;
 }
