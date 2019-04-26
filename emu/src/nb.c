@@ -96,7 +96,7 @@ void _bind_shader(nb_shader_index shader_index, bool update_cache)
                 nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE   ,    NB_TEXTURE_UNIT_PALETTE    );
 
                 nb_set_uniform_vec2i(shader, NB_UNIFORM_SCREEN_RESOLUTION  ,  &_nb.cache.screen_resolution       );
-                nb_set_uniform_vec2i(shader, NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.cache.sprite_atlas_resolution );
+                nb_set_uniform_vec2i(shader, NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.cache.tile_atlas_resolution );
                 
                 nb_set_uniform_int(shader   , NB_UNIFORM_SCREEN_SCALE        ,  _nb.cache.screen_scale);
                 nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE_SIZE        ,  _nb.cache.palette_size );
@@ -116,18 +116,19 @@ void _load_cache(nb_settings * settings)
     
     _nb.cache.sprite_atlas_resolution.x = settings->gfx.sprite_atlas_width;
     _nb.cache.sprite_atlas_resolution.y = settings->gfx.sprite_atlas_height; 
+    _nb.cache.sprite_resolution.x       = settings->gfx.sprite_width;
+    _nb.cache.sprite_resolution.y       = settings->gfx.sprite_height; 
+    _nb.cache.sprite_table_size         = settings->gfx.max_sprite_count;
+
 
     _nb.cache.tile_atlas_resolution.x = settings->gfx.tile_atlas_width;
     _nb.cache.tile_atlas_resolution.y = settings->gfx.tile_atlas_height; 
+    _nb.cache.tile_resolution.x       = settings->gfx.tile_width;
+    _nb.cache.tile_resolution.y       = settings->gfx.tile_height; 
 
-
-    _nb.cache.sprite_resolution.x       = settings->gfx.sprite_width;
-    _nb.cache.sprite_resolution.y       = settings->gfx.sprite_height; 
-    _nb.cache.sprite_table_size = settings->gfx.max_sprite_count;
-    
-    _nb.cache.screen_scale  = settings->screen.scale;
-    _nb.cache.color_depth   = settings->gfx.color_depth;
-    _nb.cache.palette_size  = settings->gfx.palette_size;
+    _nb.cache.screen_scale            = settings->screen.scale;
+    _nb.cache.color_depth             = settings->gfx.color_depth;
+    _nb.cache.palette_size            = settings->gfx.palette_size;
     //allocate buffers for palette, atlases sprites,, etc...
     
     ////////////////////////// Initialize Cache /////////////////////////////
@@ -145,20 +146,19 @@ void _load_cache(nb_settings * settings)
 }
 void _load_ram()
 {
-    _nb.ram.sprite_table        = nb_malloc(_nb.cache.sprite_table_block_size);
-    memset(_nb.ram.sprite_table, 0, _nb.cache.sprite_table_block_size );
+    _nb.ram.sprite_table           = nb_malloc(_nb.cache.sprite_table_block_size );
+    _nb.ram.tile_palette_colors    = nb_malloc(_nb.cache.palette_block_size      );
+    _nb.ram.sprite_palette_colors  = nb_malloc(_nb.cache.palette_block_size      );
+    _nb.ram.sprite_atlas_indices   = nb_malloc(_nb.cache.sprite_atlas_block_size );
+    _nb.ram.tile_atlas_indices     = nb_malloc(_nb.cache.tile_atlas_block_size   );
 
-    _nb.ram.tile_palette_colors         = nb_malloc(_nb.cache.palette_block_size);
-    memset(_nb.ram.tile_palette_colors, 0, _nb.cache.palette_block_size );
 
-    _nb.ram.sprite_palette_colors         = nb_malloc(_nb.cache.palette_block_size);
-    memset(_nb.ram.sprite_palette_colors, 0, _nb.cache.palette_block_size );
+    memset(_nb.ram.sprite_table,          0, _nb.cache.sprite_table_block_size  );
+    memset(_nb.ram.tile_palette_colors,   0, _nb.cache.palette_block_size       );
+    memset(_nb.ram.sprite_palette_colors, 0, _nb.cache.palette_block_size       );
+    memset(_nb.ram.sprite_atlas_indices,  0, _nb.cache.sprite_atlas_block_size  );
+    memset(_nb.ram.tile_atlas_indices,    0, _nb.cache.tile_atlas_block_size    );
 
-    _nb.ram.sprite_atlas_indices    = nb_malloc(_nb.cache.sprite_atlas_block_size);
-    memset(_nb.ram.sprite_atlas_indices, 0, _nb.cache.sprite_atlas_block_size );
-
-    _nb.ram.tile_atlas_indices    = nb_malloc(_nb.cache.tile_atlas_block_size);
-    memset(_nb.ram.tile_atlas_indices, 0, _nb.cache.tile_atlas_block_size );
 }
 
 void _load_gfx()
@@ -188,6 +188,9 @@ void _load_gfx()
         &_nb.gfx.level,
         &_nb.gfx.shaders[NB_TILE_SHADER], 
         _nb.ram.level_indices, 
+ 
+        _nb.cache.tile_resolution.x , 
+        _nb.cache.tile_resolution.y ,
         _nb.cache.level_resolution.x , 
         _nb.cache.level_resolution.y );
 }

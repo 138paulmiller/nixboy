@@ -13,17 +13,17 @@ Tile based sprite renderer
 //Expected defs
 #define NB_ATTRIB_VERT                 "in_vert"
 #define NB_ATTRIB_UV                   "in_uv"
-#define NB_UNIFORM_POS                 "pos"
-#define NB_UNIFORM_SIZE                "size"
+#define NB_UNIFORM_RECT_POS            "rect_pos"
+#define NB_UNIFORM_RECT_SIZE           "rect_size"
 #define NB_UNIFORM_SCREEN_SCALE        "screen_scale"
 #define NB_UNIFORM_SCREEN_RESOLUTION   "screen_resolution"
 #define NB_UNIFORM_ATLAS               "atlas"
 #define NB_UNIFORM_PALETTE             "palette"
 //atlas offset for sprites/tiles 
 
-#define NB_UNIFORM_OFFSET              "offset"
 #define NB_UNIFORM_PALETTE_SIZE        "palette_size"
 #define NB_UNIFORM_ATLAS_RESOLUTION    "atlas_resolution"
+#define NB_UNIFORM_ATLAS_OFFSET        "atlas_offset"
 #define NB_UNIFORM_COLOR_DEPTH         "color_depth"
 
 #define NB_UNIFORM_SCROLL              "scroll"
@@ -149,7 +149,7 @@ typedef struct nb_sprite
 
 
 
-//Rendering level, binds palette, and tile atlas  
+//Rendering level, need palette, and tile atlas bound to render  
 typedef struct nb_level
 {
     vec2i scroll; //tilemap offset   
@@ -298,8 +298,9 @@ void        nb_flip_sprite   (nb_sprite * sprite,
 nb_status   nb_init_level     ( nb_level * level,
                                 nb_shader * shader,
                                 byte * tilemap_indices,
-                                u32 width, 
-                                u32 height);
+                                u32 tile_width, u32 tile_height,
+                                u32 level_width, u32 level_height
+                                );
 
 void        nb_destroy_level  (nb_level * level );
 void        nb_update_level   (nb_level * level ); //if tilemap changes

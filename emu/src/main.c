@@ -14,10 +14,13 @@
 
 #define DEFAULT_TILE_ATLAS_WIDTH     64  
 #define DEFAULT_TILE_ATLAS_HEIGHT    64
+
+#define DEFAULT_LEVEL_WIDTH     64  
+#define DEFAULT_LEVEL_HEIGHT    64
   
   //number of tile width and tile height 
-#define DEFAULT_LEVEL_HEIGHT      64  
-#define DEFAULT_LEVEL_WIDTH      64 
+#define DEFAULT_TILE_HEIGHT          8  
+#define DEFAULT_TILE_WIDTH           8  
 
 #define DEFAULT_SCREEN_WIDTH         100  
 #define DEFAULT_SCREEN_HEIGHT        60
@@ -79,6 +82,8 @@ int main(int argc, char ** argv)
             sprite_atlas_height   : DEFAULT_SPRITE_ATLAS_HEIGHT ,
             tile_atlas_width      : DEFAULT_TILE_ATLAS_WIDTH    ,
             tile_atlas_height     : DEFAULT_TILE_ATLAS_HEIGHT   ,
+            tile_width           : DEFAULT_TILE_WIDTH         , 
+            tile_height          : DEFAULT_TILE_HEIGHT        , 
             level_width           : DEFAULT_LEVEL_WIDTH         , 
             level_height          : DEFAULT_LEVEL_HEIGHT        , 
             color_depth           : DEFAULT_COLOR_DEPTH         ,
@@ -92,11 +97,11 @@ int main(int argc, char ** argv)
 
 
     nb_debug("Initializing memory\n");
-    nb_set_sprite_palette(&default_palette_colors[0]);
-    nb_set_tile_palette(&default_palette_colors[0]);    
-    nb_set_sprite_atlas(&default_sprite_atlas_indices[0]);
-    nb_set_tile_atlas(&default_tile_atlas_indices[0]);
-    nb_set_level(&default_level_indices[0]);
+    nb_set_sprite_palette ( &default_palette_colors[0]        );
+    nb_set_tile_palette   ( &default_palette_colors[0]        );    
+    nb_set_sprite_atlas   ( &default_sprite_atlas_indices[0]  );
+    nb_set_tile_atlas     ( &default_tile_atlas_indices[0]    );
+    nb_set_level          ( &default_level_indices[0]         );
     
     nb_debug("Creating sprites\n");
     nb_sprite * sprite0;
@@ -107,8 +112,8 @@ int main(int argc, char ** argv)
 
     
     sprite1 = nb_add_sprite(NB_SPRITE_REGULAR, 1);
-    nb_set_sprite_xy(sprite1,DEFAULT_SPRITE_WIDTH,0);
-    nb_set_sprite_offset(sprite1, DEFAULT_SPRITE_WIDTH, 0);
+    nb_set_sprite_xy(sprite1,     settings.gfx.sprite_width, 0 );
+    nb_set_sprite_offset(sprite1, settings.gfx.sprite_width, 0);
         
 
     //returns if paused, continue.
@@ -172,14 +177,14 @@ int main(int argc, char ** argv)
         if(nb_get_keystate(NB_r) == NB_KEYDOWN)
         {
             color.r ++;
-            color.r = color.r % DEFAULT_COLOR_DEPTH;
+            color.r = color.r % settings.gfx.color_depth;
                         
             nb_get_sprite_palette()[color_i].r++;
             nb_flag(draw_flags , NB_FLAG_SPRITE_PALETTE_DIRTY);
         }
 
-        offsetx = clamp(offsetx, 0,  DEFAULT_PALETTE_SIZE - DEFAULT_SPRITE_WIDTH);
-        offsety = clamp(offsety, 0,  DEFAULT_PALETTE_SIZE - DEFAULT_SPRITE_HEIGHT);           
+        offsetx = clamp(offsetx, 0,  settings.gfx.palette_size  - settings.gfx.sprite_width);
+        offsety = clamp(offsety, 0,  settings.gfx.palette_size - settings.gfx.sprite_height);           
         
         nb_set_sprite_offset(sprite1, offsetx, offsety);
 

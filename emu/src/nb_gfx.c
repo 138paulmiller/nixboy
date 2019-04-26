@@ -618,8 +618,8 @@ void  nb_destroy_rect(nb_rect * rect)
 void  nb_render_rect(nb_rect * rect)
 {
     //Update uniforms only if dirty?
-    nb_set_uniform_vec2f(rect->mesh.shader, NB_UNIFORM_SIZE, &rect->size);
-    nb_set_uniform_vec2f(rect->mesh.shader, NB_UNIFORM_POS,  &rect->pos);
+    nb_set_uniform_vec2f(rect->mesh.shader, NB_UNIFORM_RECT_SIZE, &rect->size);
+    nb_set_uniform_vec2f(rect->mesh.shader, NB_UNIFORM_RECT_POS,  &rect->pos);
     nb_render_mesh(&rect->mesh);   
 }
 
@@ -735,7 +735,7 @@ void        nb_render_sprite(nb_sprite * sprite)
     if( sprite && sprite->is_active)
     {
         //sprites reference sader
-        nb_set_uniform_vec2i(sprite->rect.mesh.shader, NB_UNIFORM_OFFSET, &sprite->offset);
+        nb_set_uniform_vec2i(sprite->rect.mesh.shader, NB_UNIFORM_ATLAS_OFFSET, &sprite->offset);
         nb_render_rect(&sprite->rect);
     }
 }
@@ -774,13 +774,21 @@ void        nb_flip_sprite(nb_sprite * sprite, bool flip_x, bool flip_y )
     sprite->flip_y = flip_y;   
 }
 
-nb_status       nb_init_level     ( nb_level * level,  nb_shader * shader, byte * tilemap_indices, u32 width, u32 height)
+nb_status       nb_init_level(  nb_level * level,  
+                                nb_shader * shader, 
+                                byte * tilemap_indices, 
+                                u32 tile_width, u32 tile_height,
+                                u32 level_width, u32 level_height
+                                )
 {
     
-    nb_init_atlas(&level->tilemap, tilemap_indices, width, height);
+    nb_init_atlas(&level->tilemap, tilemap_indices, level_width, level_height);
 
     //TODO type to determine                                            //
-    nb_status status = nb_init_rect(&level->rect, shader, 0, 0, width, height);
+    nb_status status = nb_init_rect(&level->rect, shader, 0, 0, 
+        tile_width * level_width, 
+        level_height * tile_height
+    );
     if(status == NB_FAILURE)
     {
         nb_error("Failed to create sprite object");

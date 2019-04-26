@@ -61,11 +61,15 @@ x -----------------------------------End Bankable Memory
 
 -------
 Rendering 
-	Palette      : [ c0 | c1 | .... cT] 
+	Palette      : [ c0 c1 .... cT] 
 
 		where ci for i from 0 to T is an RGBA color
 	
-	Sprite Atlas : 
+	Sprite Atlas : [ [ s00 s01 .. s0x ] 
+					 [ s10 s11 .. s1x ] 
+					 [ sy0 sy1 .. syx ]
+				    ]
+
 
 */
 
@@ -136,6 +140,8 @@ typedef struct nb_settings
 		u16 		sprite_atlas_height; 
 		u16 		tile_atlas_width;
 		u16 		tile_atlas_height;  
+		u16 		tile_width;
+		u16 		tile_height;   
 		u16 		level_width;
 		u16 		level_height; 
 		u16 		color_depth;
@@ -189,8 +195,9 @@ typedef struct nb_state
 		vec2i sprite_resolution; //number of pixels along sprite width|height 
 		vec2i screen_resolution;
 		vec2i sprite_atlas_resolution;
-		vec2i tile_atlas_resolution;
-		vec2i level_resolution;
+		vec2i tile_atlas_resolution;    //numbe of tiles along level edge
+		vec2i level_resolution;			//numbe of tiles along level edge
+		vec2i tile_resolution;			//number of pixels along tile edge
 
 		u32 palette_size ;		//dwisth of palette in colors
 		u32 color_depth;
