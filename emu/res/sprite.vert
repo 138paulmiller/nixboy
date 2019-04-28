@@ -1,6 +1,4 @@
 #version 130
-//uniform usampler2D palette;
-//uniform usampler2D atlas;
 
 uniform ivec2   screen_resolution;
 uniform vec2    rect_size;

@@ -15,6 +15,20 @@ uniform int    		color_depth;
 in  vec2	 		uv;
 out vec4 	 		out_color;
 	
+
+/*   _________________ atlas.w,atlas.h
+	|                 | 
+	|                 |
+	|  _ off+rect_size|
+	| |_|             |
+	|offset           |
+	|                 |  
+	|_________________|   Where sprite sample index into palette for rgb colors 	
+							
+							
+  0,0
+*/
+
 void main()
 {
 
@@ -22,7 +36,7 @@ void main()
 	vec2 max_offset 	= vec2(atlas_resolution-rect_size);
 	vec2 clamped_offset = clamp(atlas_offset, min_offset, max_offset);
 
-	vec2 sprite_uv 		=  ( uv * rect_size + clamped_offset ) / atlas_resolution;
+	vec2 sprite_uv 		=  (uv * rect_size + clamped_offset ) / atlas_resolution;
 
 	float color_index  	= (texture(atlas, sprite_uv).r)/float(palette_size) ;
 

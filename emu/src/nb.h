@@ -53,7 +53,7 @@ x -----------------------------------End Bankable Memory
 	Id : | X | Y | U | V | T |  ....
 	     ---------------------
 		All Coordinates origin are bottom left
-		X Y : position in level
+		X Y : position in tilemap
 		U,V : position on sprite sheet u,v in (256,256)
 			Sprite Sheet is 
 		T  : Sprite Type : Defined sizes above
@@ -85,7 +85,6 @@ Rendering
 
 
 
-
 #define nb_test(flags,pos) (( (flags) & (1<<pos ) )>>pos)
 #define nb_flag(flags,pos) ( (flags) = (flags) | (1<<pos));
 
@@ -97,7 +96,7 @@ typedef enum nb_flags
 	NB_FLAG_TILE_PALETTE_DIRTY 		= 1,
 	NB_FLAG_SPRITE_ATLAS_DIRTY 	= 2,
 	NB_FLAG_TILE_ATLAS_DIRTY 	= 3,
-	NB_FLAG_LEVEL_DIRTY 	= 4
+	NB_FLAG_TILEMAP_DIRTY 	= 4
 }
 nb_flags;
 
@@ -142,8 +141,8 @@ typedef struct nb_settings
 		u16 		tile_atlas_height;  
 		u16 		tile_width;
 		u16 		tile_height;   
-		u16 		level_width;
-		u16 		level_height; 
+		u16 		tilemap_width;
+		u16 		tilemap_height; 
 		u16 		color_depth;
 		u16 		max_sprite_count;
 	}gfx;
@@ -171,7 +170,7 @@ typedef struct nb_state
 		nb_palette sprite_palette;
 		nb_palette tile_palette;
 		
-		nb_level level;   
+		nb_tilemap tilemap;   
 	} gfx;
 	
 	//Data segments. Owningg pointers!
@@ -182,7 +181,7 @@ typedef struct nb_state
     	rgb  * sprite_palette_colors;
     	byte * sprite_atlas_indices;
     	byte * tile_atlas_indices;
-    	byte * level_indices;		//atlas that indexes into tile atlas 
+    	byte * tilemap_indices;		//atlas that indexes into tile atlas 
     	nb_sprite * sprite_table;
     } ram;
 
@@ -195,11 +194,11 @@ typedef struct nb_state
 		vec2i sprite_resolution; //number of pixels along sprite width|height 
 		vec2i screen_resolution;
 		vec2i sprite_atlas_resolution;
-		vec2i tile_atlas_resolution;    //numbe of tiles along level edge
-		vec2i level_resolution;			//numbe of tiles along level edge
+		vec2i tile_atlas_resolution;    //numbe of tiles along tilemap edge
+		vec2i tilemap_resolution;			//numbe of tiles along tilemap edge
 		vec2i tile_resolution;			//number of pixels along tile edge
 
-		u32 palette_size ;		//dwisth of palette in colors
+		u32 palette_size ;				//width of palette in colors
 		u32 color_depth;
 		u32 screen_scale;
 		//////////////////////// ram sizes cache ////////////////
@@ -207,7 +206,7 @@ typedef struct nb_state
 	    u32 palette_block_size     ;
 	    u32 sprite_atlas_block_size;
 	    u32 tile_atlas_block_size ;
-	    u32 level_block_size ;
+	    u32 tilemap_block_size ;
 
 
     } cache;
@@ -250,8 +249,8 @@ byte *      nb_get_sprite_atlas();
 void        nb_set_tile_atlas(byte * color_indices);
 byte *      nb_get_tile_atlas();
 
-void        nb_set_level(byte * level_indices);
-byte *      nb_get_level();
+void        nb_set_tilemap(byte * tilemap_indices);
+byte *      nb_get_tilemap();
 
 
 

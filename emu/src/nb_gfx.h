@@ -17,16 +17,19 @@ Tile based sprite renderer
 #define NB_UNIFORM_RECT_SIZE           "rect_size"
 #define NB_UNIFORM_SCREEN_SCALE        "screen_scale"
 #define NB_UNIFORM_SCREEN_RESOLUTION   "screen_resolution"
-#define NB_UNIFORM_ATLAS               "atlas"
-#define NB_UNIFORM_PALETTE             "palette"
+
 //atlas offset for sprites/tiles 
 
 #define NB_UNIFORM_PALETTE_SIZE        "palette_size"
 #define NB_UNIFORM_ATLAS_RESOLUTION    "atlas_resolution"
 #define NB_UNIFORM_ATLAS_OFFSET        "atlas_offset"
 #define NB_UNIFORM_COLOR_DEPTH         "color_depth"
-
 #define NB_UNIFORM_SCROLL              "scroll"
+
+#define NB_UNIFORM_PALETTE             "palette"
+#define NB_UNIFORM_ATLAS               "atlas"
+
+#define NB_UNIFORM_TILEMAP               "tilemap"
 
 #define NB_TEXTURE_UNIT_PALETTE     0
 #define NB_TEXTURE_UNIT_ATLAS      1
@@ -114,7 +117,7 @@ typedef struct nb_mesh
 //Binds 
 typedef struct nb_rect
 {
-    vec2f pos;                  //position in level
+    vec2f pos;                  //position in tilemap
     vec2f size;                 //size to render
     nb_mesh  mesh;         //texture to render
 } nb_rect;
@@ -140,7 +143,7 @@ typedef struct nb_sprite
 {
     
     vec2i offset;           //sprite atlas offset (top left corner to start reading from )
-    //sprites are tiles whose positions are not determined by level map, but an offset
+    //sprites are tiles whose positions are not determined by tilemap map, but an offset
     nb_rect rect; //size determined by type
     bool is_active;
     bool flip_x; //if flipped along y axis 
@@ -149,13 +152,13 @@ typedef struct nb_sprite
 
 
 
-//Rendering level, need palette, and tile atlas bound to render  
-typedef struct nb_level
+//Rendering tilemap, need palette, and tile atlas bound to render  
+typedef struct nb_tilemap
 {
     vec2i scroll; //tilemap offset   
-    nb_rect rect; // quad representin the level          
+    nb_rect rect; // quad representin the tilemap          
     nb_atlas tilemap; //maps from byte to bound tile atlas, draw 
-} nb_level; //TODO
+} nb_tilemap; //TODO
 
 
 
@@ -295,16 +298,16 @@ void        nb_flip_sprite   (nb_sprite * sprite,
                                 bool y_flip  ) ;
 
 // ------------ GFX Level  -----------------------
-nb_status   nb_init_level     ( nb_level * level,
+nb_status   nb_init_tilemap     ( nb_tilemap * tilemap,
                                 nb_shader * shader,
                                 byte * tilemap_indices,
                                 u32 tile_width, u32 tile_height,
-                                u32 level_width, u32 level_height
+                                u32 tilemap_width, u32 tilemap_height
                                 );
 
-void        nb_destroy_level  (nb_level * level );
-void        nb_update_level   (nb_level * level ); //if tilemap changes
-void        nb_render_level   (nb_level * level );
-void        nb_scroll_level   (nb_level * level, int dx, int dy );
+void        nb_destroy_tilemap  (nb_tilemap * tilemap );
+void        nb_update_tilemap   (nb_tilemap * tilemap ); //if tilemap changes
+void        nb_render_tilemap   (nb_tilemap * tilemap );
+void        nb_scroll_tilemap   (nb_tilemap * tilemap, int dx, int dy );
 
 #endif

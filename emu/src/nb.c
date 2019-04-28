@@ -35,14 +35,14 @@ static void _load_shader(nb_shader * shader,  const str vert_filepath, const str
 
     if(! vert_source)
     {
-        nb_error("Failed to Read res/sprite.vert file\n")
+        nb_error("Failed to Read %s file\n", vert_filepath);
         exit(1);
     }   
     
     if(! frag_source)
     {
 
-        nb_error("Failed to Read res/sprite.frag file\n")
+        nb_error("Failed to Read %s file\n", frag_filepath);
         exit(1);
     }   
 
@@ -94,6 +94,7 @@ void _bind_shader(nb_shader_index shader_index, bool update_cache)
                 //set indeices for texture units        
                 nb_set_uniform_int(shader   , NB_UNIFORM_ATLAS     ,    NB_TEXTURE_UNIT_ATLAS      );
                 nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE   ,    NB_TEXTURE_UNIT_PALETTE    );
+                nb_set_uniform_int(shader   , NB_UNIFORM_TILEMAP   ,    NB_TEXTURE_UNIT_TILEMAP    );
 
                 nb_set_uniform_vec2i(shader, NB_UNIFORM_SCREEN_RESOLUTION  ,  &_nb.cache.screen_resolution       );
                 nb_set_uniform_vec2i(shader, NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.cache.tile_atlas_resolution );
@@ -113,6 +114,10 @@ void _load_cache(nb_settings * settings)
 {
     _nb.cache.screen_resolution.x = settings->screen.width;
     _nb.cache.screen_resolution.y = settings->screen.height;
+    _nb.cache.screen_scale        = settings->screen.scale;
+    
+    _nb.cache.color_depth             = settings->gfx.color_depth;
+    _nb.cache.palette_size            = settings->gfx.palette_size;
     
     _nb.cache.sprite_atlas_resolution.x = settings->gfx.sprite_atlas_width;
     _nb.cache.sprite_atlas_resolution.y = settings->gfx.sprite_atlas_height; 
@@ -120,20 +125,21 @@ void _load_cache(nb_settings * settings)
     _nb.cache.sprite_resolution.y       = settings->gfx.sprite_height; 
     _nb.cache.sprite_table_size         = settings->gfx.max_sprite_count;
 
-
     _nb.cache.tile_atlas_resolution.x = settings->gfx.tile_atlas_width;
     _nb.cache.tile_atlas_resolution.y = settings->gfx.tile_atlas_height; 
     _nb.cache.tile_resolution.x       = settings->gfx.tile_width;
     _nb.cache.tile_resolution.y       = settings->gfx.tile_height; 
 
-    _nb.cache.screen_scale            = settings->screen.scale;
-    _nb.cache.color_depth             = settings->gfx.color_depth;
-    _nb.cache.palette_size            = settings->gfx.palette_size;
+    _nb.cache.tilemap_resolution.x       = settings->gfx.tilemap_width;
+    _nb.cache.tilemap_resolution.y       = settings->gfx.tilemap_height; 
+
+
     //allocate buffers for palette, atlases sprites,, etc...
     
     ////////////////////////// Initialize Cache /////////////////////////////
     _nb.cache.sprite_table_block_size   =   _nb.cache.sprite_table_size * sizeof(nb_sprite) ;
     _nb.cache.palette_block_size        =   _nb.cache.palette_size      * sizeof(rgb)       ;
+
     _nb.cache.sprite_atlas_block_size   = sizeof(byte) 
                                     * _nb.cache.sprite_atlas_resolution.x 
                                     * _nb.cache.sprite_atlas_resolution.y;
@@ -143,7 +149,14 @@ void _load_cache(nb_settings * settings)
                                     * _nb.cache.tile_atlas_resolution.x 
                                     * _nb.cache.tile_atlas_resolution.y;
 
+    _nb.cache.tilemap_block_size   = sizeof(byte) 
+                                    * _nb.cache.tilemap_resolution.x 
+                                    * _nb.cache.tilemap_resolution.y;
+
 }
+
+
+
 void _load_ram()
 {
     _nb.ram.sprite_table           = nb_malloc(_nb.cache.sprite_table_block_size );
@@ -151,6 +164,7 @@ void _load_ram()
     _nb.ram.sprite_palette_colors  = nb_malloc(_nb.cache.palette_block_size      );
     _nb.ram.sprite_atlas_indices   = nb_malloc(_nb.cache.sprite_atlas_block_size );
     _nb.ram.tile_atlas_indices     = nb_malloc(_nb.cache.tile_atlas_block_size   );
+    _nb.ram.tilemap_indices          = nb_malloc(_nb.cache.tilemap_block_size   );
 
 
     memset(_nb.ram.sprite_table,          0, _nb.cache.sprite_table_block_size  );
@@ -158,6 +172,7 @@ void _load_ram()
     memset(_nb.ram.sprite_palette_colors, 0, _nb.cache.palette_block_size       );
     memset(_nb.ram.sprite_atlas_indices,  0, _nb.cache.sprite_atlas_block_size  );
     memset(_nb.ram.tile_atlas_indices,    0, _nb.cache.tile_atlas_block_size    );
+    memset(_nb.ram.tilemap_indices,         0, _nb.cache.tilemap_block_size    );
 
 }
 
@@ -177,25 +192,54 @@ void _load_gfx()
     nb_debug("Initializing Tile Atlas\n");
     _bind_shader(NB_TILE_SHADER, 0);
     
-    nb_init_palette( &_nb.gfx.tile_palette, _nb.ram.tile_palette_colors,_nb.cache.palette_size);
+    nb_init_palette( 
+        &_nb.gfx.tile_palette, 
+        _nb.ram.tile_palette_colors,
+        _nb.cache.palette_size);
+    
     nb_init_atlas(
         &_nb.gfx.tile_atlas, 
         _nb.ram.tile_atlas_indices, 
         _nb.cache.tile_atlas_resolution.x , 
         _nb.cache.tile_atlas_resolution.y );
 
-    nb_init_level(
-        &_nb.gfx.level,
+    nb_init_tilemap(
+        &_nb.gfx.tilemap,
         &_nb.gfx.shaders[NB_TILE_SHADER], 
-        _nb.ram.level_indices, 
+        _nb.ram.tilemap_indices, 
  
         _nb.cache.tile_resolution.x , 
         _nb.cache.tile_resolution.y ,
-        _nb.cache.level_resolution.x , 
-        _nb.cache.level_resolution.y );
+        _nb.cache.tilemap_resolution.x , 
+        _nb.cache.tilemap_resolution.y );
 }
+#define DUMP_INT(cache_var)     printf(#cache_var": %d\n", _nb.cache.cache_var)
+#define DUMP_VEC2(cache_vec2)   printf(#cache_vec2": %d %d\n", _nb.cache.cache_vec2.x,_nb.cache. cache_vec2.y)
 
+void _dump_cache()
+{
+    printf("\n-----------------------Cache -------------------------\n");
+        DUMP_VEC2(sprite_resolution           );
+        DUMP_VEC2(screen_resolution           );
+        DUMP_VEC2(sprite_atlas_resolution     );
+        DUMP_VEC2(tile_atlas_resolution       );    //numbe of tiles along tilemap edge
+        DUMP_VEC2(tilemap_resolution            );         //numbe of tiles along tilemap edge
+        DUMP_VEC2(tile_resolution             );          //number of pixels along tile edge
+        DUMP_INT (sprite_table_size           ); 
+        DUMP_INT (palette_size                );            //dwisth of palette in colors
+        DUMP_INT (color_depth                 );
+        DUMP_INT (screen_scale                );
+        DUMP_INT (sprite_table_block_size     );
+        DUMP_INT (palette_block_size          );
+        DUMP_INT (sprite_atlas_block_size     );
+        DUMP_INT (tile_atlas_block_size       );
+        DUMP_INT (tilemap_block_size            );
 
+    printf("\n------------------------------------------------------\n");
+
+}
+#undef DUMP
+#undef DUMP_VEC2
 //---------------------- nb api --------------------------------
 
 void        nb_startup(nb_settings * settings)
@@ -214,12 +258,14 @@ void        nb_startup(nb_settings * settings)
 
     ////////////////////////// Load Uniforms Settings /////////////////////////////
     _load_cache(settings);    
+    _dump_cache();
+
 
     _load_ram();
     
     //  ---------------------- Compile Shaders -------------------
     _load_shader(&_nb.gfx.shaders[NB_SPRITE_SHADER], "res/sprite.vert","res/sprite.frag");
-    _load_shader(&_nb.gfx.shaders[NB_TILE_SHADER], "res/tile.vert","res/tile.frag");
+    _load_shader(&_nb.gfx.shaders[NB_TILE_SHADER], "res/tilemap.vert","res/tilemap.frag");
 
     _load_gfx();   
 }
@@ -274,12 +320,12 @@ nb_status   nb_draw(u32 flags)
 
     if( nb_test(flags, NB_FLAG_TILE_ATLAS_DIRTY))
     {
-        nb_update_level(&_nb.gfx.level);
+        nb_update_tilemap(&_nb.gfx.tilemap);
     }
 
     //  ---------------------------- draw tilemap -------------------
     _bind_shader(NB_TILE_SHADER, 1);
-    nb_render_level(&_nb.gfx.level);   
+    nb_render_tilemap(&_nb.gfx.tilemap);   
     /////////////////////////////////
     _bind_shader(NB_SPRITE_SHADER , 1);
       //---------------------- draw sprites --------------------------------
@@ -328,6 +374,12 @@ void        nb_shutdown()
     {
         nb_free(_nb.ram.tile_atlas_indices);
         _nb.ram.tile_atlas_indices = 0;
+    } 
+
+    if( _nb.ram.tilemap_indices)
+    {
+        nb_free(_nb.ram.tilemap_indices);
+        _nb.ram.tilemap_indices = 0;
     } 
 
     // ------------------------------ destroy gfx module ------------------
@@ -391,15 +443,15 @@ byte *        nb_get_tile_atlas()
     return  _nb.ram.sprite_atlas_indices;
 }
 
-void        nb_set_level(byte * level_indices)
+void        nb_set_tilemap(byte * tilemap_indices)
 {
-    memcpy(_nb.ram.level_indices, level_indices,  _nb.cache.level_block_size);
-    nb_update_level(&_nb.gfx.level);
+    memcpy(_nb.ram.tilemap_indices, tilemap_indices,  _nb.cache.tilemap_block_size);
+    nb_update_tilemap(&_nb.gfx.tilemap);
 }
 
-byte *        nb_get_level()
+byte *        nb_get_tilemap()
 {
-    return  _nb.ram.level_indices;
+    return  _nb.ram.tilemap_indices;
 }
 
 

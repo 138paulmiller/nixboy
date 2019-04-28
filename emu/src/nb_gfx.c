@@ -350,13 +350,13 @@ void    nb_bind_shader(nb_shader * shader)
     
 }
 
-#define _GET_UNIFORM_LOC(out_loc, shader, name)                     \
-    int out_loc = glGetUniformLocation(shader->program, name);      \
-    if(out_loc == -1)                                               \
-    {                                                               \
-        /*nb_warn("Could not set uniform (%s)\n",name);*/           \
-        return NB_FAILURE;                                         \
-    }                                                               \
+
+#define _LOG_ERR 1
+#define _GET_UNIFORM_LOC(out_loc, shader, name)                                 \
+    int out_loc = glGetUniformLocation(shader->program, name);                  \
+    if(out_loc == -1){                                                          \
+        if(_LOG_ERR){nb_error("Could not set uniform (%s)\n",name); exit(0); }  \
+        return NB_FAILURE;}                                                               
 
 
 
@@ -389,6 +389,9 @@ nb_status  nb_set_uniform_vec2i(nb_shader * shader, const char * name, const vec
     glUniform2i(location, value->x,value->y); 
     return NB_SUCCESS;
 }
+
+#undef _GET_UNIFORM_LOC
+#undef _LOG_ERR
 
 nb_status nb_init_mesh(nb_mesh * mesh, nb_shader * shader, nb_vertex *  verts, int num_verts)
 {
@@ -516,7 +519,7 @@ nb_status  nb_init_texture( u32 texture_location,
         case  NB_TEXTURE_1D: 
             glTexImage1D(
                 texture->type, //
-                0,                      //level
+                0,                      //tilemap
                 texture->internal_format,            
                 width,                 
                 0,                      //border
@@ -529,7 +532,7 @@ nb_status  nb_init_texture( u32 texture_location,
 
             glTexImage2D(
                 texture->type, //
-                0,                      //level
+                0,                      //tilemap
                 texture->internal_format,            
                 width, height,                 
                 0,                      //border
@@ -774,59 +777,62 @@ void        nb_flip_sprite(nb_sprite * sprite, bool flip_x, bool flip_y )
     sprite->flip_y = flip_y;   
 }
 
-nb_status       nb_init_level(  nb_level * level,  
+nb_status       nb_init_tilemap(  nb_tilemap * tilemap,  
                                 nb_shader * shader, 
                                 byte * tilemap_indices, 
                                 u32 tile_width, u32 tile_height,
-                                u32 level_width, u32 level_height
+                                u32 tilemap_width, u32 tilemap_height
                                 )
 {
     
-    nb_init_atlas(&level->tilemap, tilemap_indices, level_width, level_height);
+    nb_init_atlas(&tilemap->tilemap, tilemap_indices, tilemap_width, tilemap_height);
 
     //TODO type to determine                                            //
-    nb_status status = nb_init_rect(&level->rect, shader, 0, 0, 
-        tile_width * level_width, 
-        level_height * tile_height
+    nb_status status = nb_init_rect(
+        &tilemap->rect, 
+        shader, 
+        0, 0, 
+        tile_width * tilemap_width, 
+        tile_height * tilemap_height
     );
     if(status == NB_FAILURE)
     {
         nb_error("Failed to create sprite object");
         return NB_FAILURE;
     } 
-    level->scroll.x=0; 
-    level->scroll.y=0;
+    tilemap->scroll.x=0; 
+    tilemap->scroll.y=0;
     return NB_SUCCESS;
 }
 
-void        nb_destroy_level  (nb_level * level )
+void        nb_destroy_tilemap  (nb_tilemap * tilemap )
 {
-    if(!level) return;
+    if(!tilemap) return;
 
-    nb_destroy_atlas(&level->tilemap);
-    nb_destroy_rect(&level->rect);
+    nb_destroy_atlas(&tilemap->tilemap);
+    nb_destroy_rect(&tilemap->rect);
 }
 
-void        nb_update_level   (nb_level * level)
+void        nb_update_tilemap   (nb_tilemap * tilemap)
 {
-    nb_update_atlas( &level->tilemap); 
+    nb_update_atlas( &tilemap->tilemap); 
 }
 
 
-void        nb_render_level      (nb_level * level)
+void        nb_render_tilemap      (nb_tilemap * tilemap)
 {
-    nb_set_uniform_vec2i(level->rect.mesh.shader, NB_UNIFORM_SCROLL, &level->scroll);
+    nb_set_uniform_vec2i(tilemap->rect.mesh.shader, NB_UNIFORM_SCROLL, &tilemap->scroll);
     //sprites reference sader
-    nb_use_atlas(&level->tilemap);
+    nb_use_atlas(&tilemap->tilemap);
 
-    nb_render_rect(&level->rect);
+    nb_render_rect(&tilemap->rect);
 }
 
 
-void        nb_scroll_level   (nb_level * level, int dx, int dy )
+void        nb_scroll_tilemap   (nb_tilemap * tilemap, int dx, int dy )
 {
-    level->scroll.x+=dx; 
-    level->scroll.y+=dy;
+    tilemap->scroll.x += dx; 
+    tilemap->scroll.y += dy;
 }
 
 
