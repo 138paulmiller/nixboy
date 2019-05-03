@@ -792,7 +792,7 @@ nb_status       nb_init_tilemap(  nb_tilemap * tilemap,
         &tilemap->rect, 
         shader, 
         0, 0, 
-        tile_width * tilemap_width, 
+        tile_width * tilemap_width  , 
         tile_height * tilemap_height
     );
     if(status == NB_FAILURE)
@@ -833,6 +833,24 @@ void        nb_scroll_tilemap   (nb_tilemap * tilemap, int dx, int dy )
 {
     tilemap->scroll.x += dx; 
     tilemap->scroll.y += dy;
+    
+    if(tilemap->scroll.x < 0)
+    {
+        tilemap->scroll.x = 0;     
+    }
+    if(tilemap->scroll.x > tilemap->rect.size.x)
+    {
+        tilemap->scroll.x = tilemap->rect.size.x;
+    }   
+    if(tilemap->scroll.y < 0)
+    {
+        tilemap->scroll.y = 0;     
+    }
+    if(tilemap->scroll.y > tilemap->rect.size.y)
+    {
+        tilemap->scroll.y = tilemap->rect.size.y;
+    }   
+
 }
 
 

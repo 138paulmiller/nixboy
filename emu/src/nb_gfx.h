@@ -156,7 +156,7 @@ typedef struct nb_sprite
 typedef struct nb_tilemap
 {
     vec2i scroll; //tilemap offset   
-    nb_rect rect; // quad representin the tilemap          
+    nb_rect rect; // quad representing the tilemap          
     nb_atlas tilemap; //maps from byte to bound tile atlas, draw 
 } nb_tilemap; //TODO
 

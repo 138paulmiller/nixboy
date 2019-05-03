@@ -232,6 +232,8 @@ nb_status 	nb_draw(u32 flags);
 */
 void 		nb_shutdown();
 
+void      nb_scroll(u32 dx, u32 dy);
+
 
 //Copies data over into memory
 void        nb_set_tile_palette(rgb * colors);

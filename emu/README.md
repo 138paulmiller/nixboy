@@ -6,14 +6,16 @@
 
 - GL, GLEW, SDL2
 
-* Linux
+* Ubuntu
 ```shell
 sudo apt-get install mesa-utils  libglew-dev libsdl2-dev
 ```
+* Windows
+Requires XMing to be installed and running
+Use Windows Subsystem for Linux.
 
 Overview
 	Ram Layout
-
 
 
 # TODO 
@@ -22,3 +24,4 @@ Overview
 	Load tiles using a level texture that uses indices to map into the tile atlas.
 [] in nb module. Start adding features to load cart data into memory and execute it
 [] Then, start loading bytecode to operate /switch bank data/ modify sprite table etc... 
+[] Create UI that is a fullscreen quad that is draw last

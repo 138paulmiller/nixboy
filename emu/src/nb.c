@@ -325,6 +325,7 @@ nb_status   nb_draw(u32 flags)
 
     //  ---------------------------- draw tilemap -------------------
     _bind_shader(NB_TILE_SHADER, 1);
+
     nb_render_tilemap(&_nb.gfx.tilemap);   
     /////////////////////////////////
     _bind_shader(NB_SPRITE_SHADER , 1);
@@ -396,6 +397,14 @@ void        nb_shutdown()
 
     exit(0);
 }
+
+
+void      nb_scroll(u32 dx, u32 dy)
+{
+        nb_scroll_tilemap(&_nb.gfx.tilemap, dx, dy);
+}
+
+
 // --------------------------------- Accessors / Mutators for intoernal structure --------------
 void        nb_set_sprite_palette(rgb * colors)
 {
@@ -449,7 +458,7 @@ void        nb_set_tilemap(byte * tilemap_indices)
     nb_update_tilemap(&_nb.gfx.tilemap);
 }
 
-byte *        nb_get_tilemap()
+byte *        nb_get_tilemap_data()
 {
     return  _nb.ram.tilemap_indices;
 }

@@ -20,7 +20,7 @@ out vec4 	 		out_color;
 void main()
 {
 	vec2 min_scroll 	= vec2(0,0);
-	vec2 max_scroll 	= vec2(atlas_resolution-rect_size);
+	vec2 max_scroll 	= vec2(rect_size);
 	vec2 clamped_scroll = clamp(scroll, min_scroll, max_scroll);
 
 	vec2 atlas_uv 		=  (uv * rect_size + clamped_scroll ) / atlas_resolution;

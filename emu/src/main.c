@@ -22,8 +22,8 @@
 #define DEFAULT_TILE_HEIGHT          8  
 #define DEFAULT_TILE_WIDTH           8  
 
-#define DEFAULT_SCREEN_WIDTH         100  
-#define DEFAULT_SCREEN_HEIGHT        60
+#define DEFAULT_SCREEN_WIDTH         124  
+#define DEFAULT_SCREEN_HEIGHT        64
 
 #define DEFAULT_COLOR_DEPTH          255
 #define DEFAULT_SCALE                10
@@ -110,14 +110,12 @@ int main(int argc, char ** argv)
     nb_sprite * sprite1;
     sprite0 = nb_add_sprite(NB_SPRITE_REGULAR, 0);
     nb_set_sprite_xy(sprite0,0,0);
-    nb_set_sprite_offset(sprite1, 0, 0);
-
+    nb_set_sprite_offset(sprite0, 0, 0);
     
     sprite1 = nb_add_sprite(NB_SPRITE_REGULAR, 1);
     nb_set_sprite_xy(sprite1,     settings.gfx.sprite_width, 0 );
     nb_set_sprite_offset(sprite1, settings.gfx.sprite_width, 0);
         
-
     //returns if paused, continue.
     nb_status status;
 
@@ -157,18 +155,22 @@ int main(int argc, char ** argv)
         if(nb_get_keystate(NB_i) == NB_KEYPRESS)
         {
             offsety +=1;
+            nb_scroll(0,1);
         }   
         if(nb_get_keystate(NB_k) == NB_KEYPRESS)
         {
-            offsety -=1;            
+            offsety -=1;     
+            nb_scroll(0,-1);       
         }
         if(nb_get_keystate(NB_j) == NB_KEYPRESS)
         {
-            offsetx -=1;            
+            offsetx -=1;         
+            nb_scroll(-1,0);   
         }        
-        if(nb_get_keystate(NB_l) == NB_KEYPRESS)
+        if(nb_get_keystate(NB_l) == NB_KEYDOWN)
         {
-            offsetx +=1;            
+            offsetx +=1;  
+            nb_scroll(1,0);          
         }
 
         if(nb_get_keystate(NB_SPACE) == NB_KEYPRESS)
