@@ -98,6 +98,7 @@ void _bind_shader(nb_shader_index shader_index, bool update_cache)
 
                 nb_set_uniform_vec2i(shader, NB_UNIFORM_SCREEN_RESOLUTION  ,  &_nb.cache.screen_resolution       );
                 nb_set_uniform_vec2i(shader, NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.cache.tile_atlas_resolution );
+                nb_set_uniform_vec2i(shader, NB_UNIFORM_TILEMAP_RESOLUTION   ,  &_nb.cache.tilemap_resolution );
                 
                 nb_set_uniform_int(shader   , NB_UNIFORM_SCREEN_SCALE        ,  _nb.cache.screen_scale);
                 nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE_SIZE        ,  _nb.cache.palette_size );

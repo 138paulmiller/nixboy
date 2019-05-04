@@ -20,6 +20,8 @@ static nb_mouse        _mouse;
 static nb_timer        _fps_timer;  //create a shader stack to push and pop?
 
 
+
+bool _suppress_uniform_error  = 0;
 //Frames per Sec, Frames Per MilliSec
 static int  _fps_cap  = -1;
 static int _fpms_cap  = -1;
@@ -350,12 +352,10 @@ void    nb_bind_shader(nb_shader * shader)
     
 }
 
-
-#define _LOG_ERR 1
 #define _GET_UNIFORM_LOC(out_loc, shader, name)                                 \
     int out_loc = glGetUniformLocation(shader->program, name);                  \
     if(out_loc == -1){                                                          \
-        if(_LOG_ERR){nb_error("Could not set uniform (%s)\n",name); exit(0); }  \
+        if(_suppress_uniform_error){nb_error("Could not set uniform (%s)\n",name); exit(0); }  \
         return NB_FAILURE;}                                                               
 
 
@@ -391,7 +391,7 @@ nb_status  nb_set_uniform_vec2i(nb_shader * shader, const char * name, const vec
 }
 
 #undef _GET_UNIFORM_LOC
-#undef _LOG_ERR
+#undef _suppress_uniform_error
 
 nb_status nb_init_mesh(nb_mesh * mesh, nb_shader * shader, nb_vertex *  verts, int num_verts)
 {
@@ -779,16 +779,25 @@ void        nb_flip_sprite(nb_sprite * sprite, bool flip_x, bool flip_y )
 
 nb_status       nb_init_tilemap(  nb_tilemap * tilemap,  
                                 nb_shader * shader, 
-                                byte * tilemap_indices, 
+                                byte * indices, 
                                 u32 tile_width, u32 tile_height,
                                 u32 tilemap_width, u32 tilemap_height
                                 )
 {
     
-    nb_init_atlas(&tilemap->tilemap, tilemap_indices, tilemap_width, tilemap_height);
-
-    //TODO type to determine                                            //
-    nb_status status = nb_init_rect(
+    nb_status status = nb_init_texture(    
+                            NB_TEXTURE_UNIT_TILEMAP,
+                            &tilemap->texture, 
+                            NB_TEXTURE_2D, 
+                            NB_R8,
+                            &indices[0],
+                            tilemap_width, tilemap_height);
+    if(status == NB_FAILURE)
+    {
+        nb_error("Failed to init palette texture");
+        return;
+    } 
+    status = nb_init_rect(
         &tilemap->rect, 
         shader, 
         0, 0, 
@@ -802,6 +811,9 @@ nb_status       nb_init_tilemap(  nb_tilemap * tilemap,
     } 
     tilemap->scroll.x=0; 
     tilemap->scroll.y=0;
+    tilemap->tile_size.x = tile_width  ;
+    tilemap->tile_size.y = tile_height ;
+    tilemap->indices = indices;
     return NB_SUCCESS;
 }
 
@@ -809,25 +821,25 @@ void        nb_destroy_tilemap  (nb_tilemap * tilemap )
 {
     if(!tilemap) return;
 
-    nb_destroy_atlas(&tilemap->tilemap);
+     tilemap->indices =0 ;
+    nb_destroy_texture(&tilemap->texture);
     nb_destroy_rect(&tilemap->rect);
 }
 
 void        nb_update_tilemap   (nb_tilemap * tilemap)
 {
-    nb_update_atlas( &tilemap->tilemap); 
+    nb_update_texture( NB_TEXTURE_UNIT_TILEMAP, &tilemap->texture,0,0, tilemap->texture.width, tilemap->texture.height); 
 }
-
 
 void        nb_render_tilemap      (nb_tilemap * tilemap)
 {
-    nb_set_uniform_vec2i(tilemap->rect.mesh.shader, NB_UNIFORM_SCROLL, &tilemap->scroll);
+    nb_set_uniform_vec2i(tilemap->rect.mesh.shader, NB_UNIFORM_SCROLL,      &tilemap->scroll);
+    nb_set_uniform_vec2i(tilemap->rect.mesh.shader, NB_UNIFORM_TILE_SIZE,   &tilemap->tile_size);
     //sprites reference sader
-    nb_use_atlas(&tilemap->tilemap);
+    nb_bind_texture(NB_TEXTURE_UNIT_TILEMAP, &(tilemap->texture));
 
     nb_render_rect(&tilemap->rect);
 }
-
 
 void        nb_scroll_tilemap   (nb_tilemap * tilemap, int dx, int dy )
 {
@@ -852,7 +864,3 @@ void        nb_scroll_tilemap   (nb_tilemap * tilemap, int dx, int dy )
     }   
 
 }
-
-
-
-

@@ -21,7 +21,9 @@ Tile based sprite renderer
 //atlas offset for sprites/tiles 
 
 #define NB_UNIFORM_PALETTE_SIZE        "palette_size"
+#define NB_UNIFORM_TILE_SIZE           "tile_size"
 #define NB_UNIFORM_ATLAS_RESOLUTION    "atlas_resolution"
+#define NB_UNIFORM_TILEMAP_RESOLUTION  "tilemap_resolution"
 #define NB_UNIFORM_ATLAS_OFFSET        "atlas_offset"
 #define NB_UNIFORM_COLOR_DEPTH         "color_depth"
 #define NB_UNIFORM_SCROLL              "scroll"
@@ -29,7 +31,7 @@ Tile based sprite renderer
 #define NB_UNIFORM_PALETTE             "palette"
 #define NB_UNIFORM_ATLAS               "atlas"
 
-#define NB_UNIFORM_TILEMAP               "tilemap"
+#define NB_UNIFORM_TILEMAP              "tilemap"
 
 #define NB_TEXTURE_UNIT_PALETTE     0
 #define NB_TEXTURE_UNIT_ATLAS      1
@@ -155,9 +157,12 @@ typedef struct nb_sprite
 //Rendering tilemap, need palette, and tile atlas bound to render  
 typedef struct nb_tilemap
 {
-    vec2i scroll; //tilemap offset   
+    vec2i   scroll; //tilemap offset   
+    vec2i   tile_size; //tilemap offset   
     nb_rect rect; // quad representing the tilemap          
-    nb_atlas tilemap; //maps from byte to bound tile atlas, draw 
+    byte    * indices;         //nonowning ptr
+    nb_texture texture;    //atlas sheet texture (palette indices)
+
 } nb_tilemap; //TODO
 
 
@@ -300,7 +305,7 @@ void        nb_flip_sprite   (nb_sprite * sprite,
 // ------------ GFX Level  -----------------------
 nb_status   nb_init_tilemap     ( nb_tilemap * tilemap,
                                 nb_shader * shader,
-                                byte * tilemap_indices,
+                                byte * indices,
                                 u32 tile_width, u32 tile_height,
                                 u32 tilemap_width, u32 tilemap_height
                                 );
