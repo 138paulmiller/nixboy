@@ -57,7 +57,7 @@ int main(int argc, char ** argv)
 
 
     byte default_tilemap_indices[ DEFAULT_TILEMAP_WIDTH * DEFAULT_TILEMAP_HEIGHT] = {
-#include "default_tilemap.inl"
+#include "checkered_tilemap.inl"
     };
     //
 
@@ -135,6 +135,10 @@ int main(int argc, char ** argv)
         float dx=0, dy=0;
         draw_flags =0 ;
         //on key press. TODO Create an event callback?   
+        if(nb_get_keystate(NB_ESCAPE) == NB_KEYPRESS)
+        {
+            break;
+        }  
         if(nb_get_keystate(NB_w) == NB_KEYPRESS)
         {
             dy=1;
@@ -162,7 +166,7 @@ int main(int argc, char ** argv)
             offsety -=1;     
             nb_scroll(0,-1);       
         }
-        if(nb_get_keystate(NB_j) == NB_KEYPRESS)
+        if(nb_get_keystate(NB_j) == NB_KEYDOWN)
         {
             offsetx -=1;         
             nb_scroll(-1,0);   
