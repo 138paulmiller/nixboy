@@ -18,44 +18,56 @@ uniform int    		palette_size;
 in  vec2	 		uv;
 out vec4 	 		out_color;
 
+//#define CHECK_TILE_INDEX 
+
+uint get_tile_index()
+{
+	vec2 res 			= vec2(tilemap_resolution);
+	vec2 tilemap_uv 	= (uv * res ) / res;
+	uint tile_index  	= texture(tilemap, tilemap_uv).r;
+
+	return tile_index;
+}
+
+vec2 compute_atlas_uv(uint tile_index)
+{
+	
+	vec2 tiles_per_tilemap = vec2(tilemap_resolution);
+	vec2 tiles_per_atlas = vec2(atlas_resolution) / vec2(tile_size);
+
+	int atlas_width  = int(tiles_per_atlas.x);
+	float tile_index_f = float(tile_index);
+	
+	//calc offset with uv in range of atlas dimension
+	float u = int(tile_index) % int(tiles_per_atlas.x);
+	float v = int(tile_index) / int(tiles_per_atlas.y);
+	
+	vec2 origin_uv = vec2( u, v ) / tiles_per_atlas ;
+	
+	
+	float u_offset = fract(uv.x * float(tiles_per_tilemap.x)) / tiles_per_atlas.x;
+	float v_offset = fract(uv.y * float(tiles_per_tilemap.y)) / tiles_per_atlas.y;
+	vec2 uv_offset 	= vec2(u_offset, v_offset); 
+	
+	vec2 atlas_uv = (origin_uv + uv_offset ) ;
+	return atlas_uv ; 
+}
+
+vec4 sample_palette(uint color_index)
+{
+	float color_sample = float(color_index)/float(palette_size);
+	return 		(texture(palette, color_sample  ))/float(color_depth);
+
+}
 
 void main()
 {
-	vec2 min_scroll 	= vec2(0,0);
-	vec2 max_scroll 	= vec2(rect_size);
-	vec2 scaled_scroll =  scroll;
+	uint tile_index 	=  get_tile_index();
+	vec2 atlas_uv 	= compute_atlas_uv(tile_index);
+//	out_color = vec4(atlas_uv, 0,1);
+//	return ;
 
-	vec2 tilemap_uv 		=  (uv * tilemap_resolution +scaled_scroll) / tilemap_resolution;
-	
-	float tile_index  	= (texture(tilemap, tilemap_uv).r);
-	//map index to the atlas_uv_offset
-	float atlas_width  = atlas_resolution.x;
-	float mod_index = tile_index - (atlas_width * floor(tile_index/atlas_width));
-	vec2 atlas_uv_offset = vec2(  mod_index , tile_index / atlas_width) ;
+	uint color_index = (texture(atlas, atlas_uv).r);
+	out_color = sample_palette(color_index);
 
-	vec2 tiles_per_atlas = atlas_resolution / tile_size ; 
-	
-	vec2 atlas_uv 		= atlas_uv_offset + (uv * atlas_resolution +scaled_scroll) / atlas_resolution;
-	atlas_uv = atlas_uv/ tiles_per_atlas;
-	float tilemap_sample = (texture(atlas, atlas_uv).r)/float(palette_size);
-	out_color = vec4(atlas_uv,0,1);
-
-out_color = (texture(palette, tilemap_sample))/float(color_depth);
-
-
-/*
-	vec2 min_scroll 	= vec2(0,0);
-	vec2 max_scroll 	= vec2(atlas_resolution-rect_size);
-	vec2 clamped_scroll = clamp(scroll, min_scroll, max_scroll);
-	vec2 atlas_uv 		=  ( uv * rect_size + clamped_scroll ) / atlas_resolution;
-	vec2 tile_per_edge = (atlas_resolution / rect_size);
-	float tile_count    = tile_per_edge.x * tile_per_edge.y;
-
-	float tile_index  	= (texture(atlas, atlas_uv).r)/float(tile_count);
-	
-	float tilemap_sample = (texture(tilemap, atlas_uv).r)/float(palette_size);
-	out_color = (texture(palette, tile_index))/float(color_depth);
-	out_color.r = tilemap_sample;
-*/
-
-}//
+}

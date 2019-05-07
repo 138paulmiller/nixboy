@@ -138,7 +138,8 @@ void nb_destroy_window()
 
 void nb_clear_window()
 {
-    glClearColor(0,0,0,0);
+    glColorMask(1,1,1,1);
+    glClearColor(0,0,0,1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -197,13 +198,13 @@ nb_status nb_update_window()
         }
     }
     
-    SDL_GL_SwapWindow(_sdl_window);
-
-    nb_clear_window();
-
     // enable transprency 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    SDL_GL_SwapWindow(_sdl_window);
+    nb_clear_window();
+
+
     nb_timer_tick(&_fps_timer); 
     if(_fps_cap != -1 && nb_fpms() < _fpms_cap)
     {
@@ -795,7 +796,7 @@ nb_status       nb_init_tilemap(  nb_tilemap * tilemap,
     if(status == NB_FAILURE)
     {
         nb_error("Failed to init palette texture");
-        return;
+        return NB_FAILURE;
     } 
     status = nb_init_rect(
         &tilemap->rect, 
@@ -845,22 +846,6 @@ void        nb_scroll_tilemap   (nb_tilemap * tilemap, int dx, int dy )
 {
     tilemap->scroll.x += dx; 
     tilemap->scroll.y += dy;
-    
-    if(tilemap->scroll.x < 0)
-    {
-        tilemap->scroll.x = 0;     
-    }
-    if(tilemap->scroll.x > tilemap->rect.size.x)
-    {
-        tilemap->scroll.x = tilemap->rect.size.x;
-    }   
-    if(tilemap->scroll.y < 0)
-    {
-        tilemap->scroll.y = 0;     
-    }
-    if(tilemap->scroll.y > tilemap->rect.size.y)
-    {
-        tilemap->scroll.y = tilemap->rect.size.y;
-    }   
+    //clamp scroll?? Will wrap in shader
 
 }

@@ -37,27 +37,29 @@ int main(int argc, char ** argv)
 {
     //should load  data from from cart
     rgb  default_palette_colors[DEFAULT_PALETTE_SIZE] = {
-#include "grayscale_palette.inl"
+#include "inl/grayscale_palette.inl"
 //#include "default_palette.inl"
     };
 
 
 
     byte default_sprite_atlas_indices[ DEFAULT_SPRITE_ATLAS_WIDTH * DEFAULT_SPRITE_ATLAS_HEIGHT] = {
-#include "checkered_sprite_atlas.inl"
+#include "inl/checkered_sprite_atlas.inl"
 //#include "default_sprite_atlas.inl"
     };
     //
 
     byte default_tile_atlas_indices[ DEFAULT_SPRITE_ATLAS_WIDTH * DEFAULT_SPRITE_ATLAS_HEIGHT] = {
-#include "gradient_tile_atlas.inl"
+#include "inl/gradient_tile_atlas.inl"
     };
     //
 
 
 
     byte default_tilemap_indices[ DEFAULT_TILEMAP_WIDTH * DEFAULT_TILEMAP_HEIGHT] = {
-#include "checkered_tilemap.inl"
+#include "inl/checkered_tilemap.inl"
+
+//#include "inl/default_tilemap.inl"
     };
     //
 
@@ -156,12 +158,12 @@ int main(int argc, char ** argv)
             dx=-1;
         }
 
-        if(nb_get_keystate(NB_i) == NB_KEYPRESS)
+        if(nb_get_keystate(NB_i) == NB_KEYDOWN)
         {
             offsety +=1;
             nb_scroll(0,1);
         }   
-        if(nb_get_keystate(NB_k) == NB_KEYPRESS)
+        if(nb_get_keystate(NB_k) == NB_KEYDOWN)
         {
             offsety -=1;     
             nb_scroll(0,-1);       
