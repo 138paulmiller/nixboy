@@ -520,7 +520,7 @@ nb_status  nb_init_texture( u32 texture_location,
         case  NB_TEXTURE_1D: 
             glTexImage1D(
                 texture->type, //
-                0,                      //tilemap
+                0,                      //level
                 texture->internal_format,            
                 width,                 
                 0,                      //border
@@ -533,7 +533,7 @@ nb_status  nb_init_texture( u32 texture_location,
 
             glTexImage2D(
                 texture->type, //
-                0,                      //tilemap
+                0,                      //level
                 texture->internal_format,            
                 width, height,                 
                 0,                      //border
@@ -778,74 +778,74 @@ void        nb_flip_sprite(nb_sprite * sprite, bool flip_x, bool flip_y )
     sprite->flip_y = flip_y;   
 }
 
-nb_status       nb_init_tilemap(  nb_tilemap * tilemap,  
+nb_status       nb_init_level(  nb_level * level,  
                                 nb_shader * shader, 
                                 byte * indices, 
                                 u32 tile_width, u32 tile_height,
-                                u32 tilemap_width, u32 tilemap_height
+                                u32 level_width, u32 level_height
                                 )
 {
     
     nb_status status = nb_init_texture(    
-                            NB_TEXTURE_UNIT_TILEMAP,
-                            &tilemap->texture, 
+                            NB_TEXTURE_UNIT_LEVEL,
+                            &level->texture, 
                             NB_TEXTURE_2D, 
                             NB_R8,
                             &indices[0],
-                            tilemap_width, tilemap_height);
+                            level_width, level_height);
     if(status == NB_FAILURE)
     {
         nb_error("Failed to init palette texture");
         return NB_FAILURE;
     } 
     status = nb_init_rect(
-        &tilemap->rect, 
+        &level->rect, 
         shader, 
         0, 0, 
-        tile_width * tilemap_width  , 
-        tile_height * tilemap_height
+        tile_width * level_width  , 
+        tile_height * level_height
     );
     if(status == NB_FAILURE)
     {
         nb_error("Failed to create sprite object");
         return NB_FAILURE;
     } 
-    tilemap->scroll.x=0; 
-    tilemap->scroll.y=0;
-    tilemap->tile_size.x = tile_width  ;
-    tilemap->tile_size.y = tile_height ;
-    tilemap->indices = indices;
+    level->scroll.x=0; 
+    level->scroll.y=0;
+    level->tile_size.x = tile_width  ;
+    level->tile_size.y = tile_height ;
+    level->indices = indices;
     return NB_SUCCESS;
 }
 
-void        nb_destroy_tilemap  (nb_tilemap * tilemap )
+void        nb_destroy_level  (nb_level * level )
 {
-    if(!tilemap) return;
+    if(!level) return;
 
-     tilemap->indices =0 ;
-    nb_destroy_texture(&tilemap->texture);
-    nb_destroy_rect(&tilemap->rect);
+     level->indices =0 ;
+    nb_destroy_texture(&level->texture);
+    nb_destroy_rect(&level->rect);
 }
 
-void        nb_update_tilemap   (nb_tilemap * tilemap)
+void        nb_update_level   (nb_level * level)
 {
-    nb_update_texture( NB_TEXTURE_UNIT_TILEMAP, &tilemap->texture,0,0, tilemap->texture.width, tilemap->texture.height); 
+    nb_update_texture( NB_TEXTURE_UNIT_LEVEL, &level->texture,0,0, level->texture.width, level->texture.height); 
 }
 
-void        nb_render_tilemap      (nb_tilemap * tilemap)
+void        nb_render_level      (nb_level * level)
 {
-    nb_set_uniform_vec2i(tilemap->rect.mesh.shader, NB_UNIFORM_SCROLL,      &tilemap->scroll);
-    nb_set_uniform_vec2i(tilemap->rect.mesh.shader, NB_UNIFORM_TILE_SIZE,   &tilemap->tile_size);
+    nb_set_uniform_vec2i(level->rect.mesh.shader, NB_UNIFORM_SCROLL,      &level->scroll);
+    nb_set_uniform_vec2i(level->rect.mesh.shader, NB_UNIFORM_TILE_SIZE,   &level->tile_size);
     //sprites reference sader
-    nb_bind_texture(NB_TEXTURE_UNIT_TILEMAP, &(tilemap->texture));
+    nb_bind_texture(NB_TEXTURE_UNIT_LEVEL, &(level->texture));
 
-    nb_render_rect(&tilemap->rect);
+    nb_render_rect(&level->rect);
 }
 
-void        nb_scroll_tilemap   (nb_tilemap * tilemap, int dx, int dy )
+void        nb_scroll_level   (nb_level * level, int dx, int dy )
 {
-    tilemap->scroll.x += dx; 
-    tilemap->scroll.y += dy;
+    level->scroll.x += dx; 
+    level->scroll.y += dy;
     //clamp scroll?? Will wrap in shader
 
 }

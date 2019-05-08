@@ -16,8 +16,8 @@
 #define DEFAULT_TILE_ATLAS_HEIGHT    64
 
 //number of tile width and tile height for a level
-#define DEFAULT_TILEMAP_WIDTH     64  
-#define DEFAULT_TILEMAP_HEIGHT    64
+#define DEFAULT_LEVEL_WIDTH     64  
+#define DEFAULT_LEVEL_HEIGHT    64
   
 #define DEFAULT_TILE_HEIGHT          8  
 #define DEFAULT_TILE_WIDTH           8  
@@ -37,29 +37,26 @@ int main(int argc, char ** argv)
 {
     //should load  data from from cart
     rgb  default_palette_colors[DEFAULT_PALETTE_SIZE] = {
-#include "inl/grayscale_palette.inl"
-//#include "default_palette.inl"
+#include "inl/palette_grayscale.inl"
     };
 
 
 
     byte default_sprite_atlas_indices[ DEFAULT_SPRITE_ATLAS_WIDTH * DEFAULT_SPRITE_ATLAS_HEIGHT] = {
-#include "inl/checkered_sprite_atlas.inl"
-//#include "default_sprite_atlas.inl"
+#include "inl/sprite_atlas_checkered.inl"
     };
     //
 
     byte default_tile_atlas_indices[ DEFAULT_SPRITE_ATLAS_WIDTH * DEFAULT_SPRITE_ATLAS_HEIGHT] = {
-#include "inl/gradient_tile_atlas.inl"
+#include "inl/tile_atlas_gradient.inl"
     };
     //
 
 
 
-    byte default_tilemap_indices[ DEFAULT_TILEMAP_WIDTH * DEFAULT_TILEMAP_HEIGHT] = {
-#include "inl/checkered_tilemap.inl"
+    byte default_level_indices[ DEFAULT_LEVEL_WIDTH * DEFAULT_LEVEL_HEIGHT] = {
+#include "inl/level_checkered.inl"
 
-//#include "inl/default_tilemap.inl"
     };
     //
 
@@ -84,10 +81,10 @@ int main(int argc, char ** argv)
             sprite_atlas_height   : DEFAULT_SPRITE_ATLAS_HEIGHT ,
             tile_atlas_width      : DEFAULT_TILE_ATLAS_WIDTH    ,
             tile_atlas_height     : DEFAULT_TILE_ATLAS_HEIGHT   ,
-            tile_width           : DEFAULT_TILE_WIDTH         , 
-            tile_height          : DEFAULT_TILE_HEIGHT        , 
-            tilemap_width           : DEFAULT_TILEMAP_WIDTH         , 
-            tilemap_height          : DEFAULT_TILEMAP_HEIGHT        , 
+            tile_width            : DEFAULT_TILE_WIDTH         , 
+            tile_height           : DEFAULT_TILE_HEIGHT        , 
+            level_width           : DEFAULT_LEVEL_WIDTH         , 
+            level_height          : DEFAULT_LEVEL_HEIGHT        , 
             color_depth           : DEFAULT_COLOR_DEPTH         ,
             max_sprite_count      : DEFAULT_MAX_SPRITE_COUNT
         }
@@ -105,7 +102,7 @@ int main(int argc, char ** argv)
     nb_set_tile_palette   ( &default_palette_colors[0]        );    
     nb_set_tile_atlas     ( &default_tile_atlas_indices[0]    );
         
-    nb_set_tilemap          ( &default_tilemap_indices[0]         );
+    nb_set_level          ( &default_level_indices[0]         );
     
     nb_debug("Creating sprites\n");
     nb_sprite * sprite0;

@@ -1,0 +1,14 @@
+# TODO 
+
+[] Asset (cartidge, palette, atlas, level) Serialization . Also, Serialize save states for these assets
+
+[] Create a render viewport in gfx utility.
+
+[] Create a display object in gfx. Render tilemap and sprites to a render target. then add per pixel 
+modification on this target. Then render this as a texture on draw. Add in draw flags, functionality to enable or disabled tilerendering functionality.
+
+[] Compile emu to a library, expose onle nb.h api.
+
+[] Create a scripting language to interact with emulator
+
+ 

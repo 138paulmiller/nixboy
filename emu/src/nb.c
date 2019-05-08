@@ -94,11 +94,11 @@ void _bind_shader(nb_shader_index shader_index, bool update_cache)
                 //set indeices for texture units        
                 nb_set_uniform_int(shader   , NB_UNIFORM_ATLAS     ,    NB_TEXTURE_UNIT_ATLAS      );
                 nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE   ,    NB_TEXTURE_UNIT_PALETTE    );
-                nb_set_uniform_int(shader   , NB_UNIFORM_TILEMAP   ,    NB_TEXTURE_UNIT_TILEMAP    );
+                nb_set_uniform_int(shader   , NB_UNIFORM_LEVEL   ,    NB_TEXTURE_UNIT_LEVEL    );
 
                 nb_set_uniform_vec2i(shader, NB_UNIFORM_SCREEN_RESOLUTION  ,  &_nb.cache.screen_resolution       );
                 nb_set_uniform_vec2i(shader, NB_UNIFORM_ATLAS_RESOLUTION   ,  &_nb.cache.tile_atlas_resolution );
-                nb_set_uniform_vec2i(shader, NB_UNIFORM_TILEMAP_RESOLUTION   ,  &_nb.cache.tilemap_resolution );
+                nb_set_uniform_vec2i(shader, NB_UNIFORM_LEVEL_RESOLUTION   ,  &_nb.cache.level_resolution );
                 
                 nb_set_uniform_int(shader   , NB_UNIFORM_SCREEN_SCALE        ,  _nb.cache.screen_scale);
                 nb_set_uniform_int(shader   , NB_UNIFORM_PALETTE_SIZE        ,  _nb.cache.palette_size );
@@ -131,8 +131,8 @@ void _load_cache(nb_settings * settings)
     _nb.cache.tile_resolution.x       = settings->gfx.tile_width;
     _nb.cache.tile_resolution.y       = settings->gfx.tile_height; 
 
-    _nb.cache.tilemap_resolution.x       = settings->gfx.tilemap_width;
-    _nb.cache.tilemap_resolution.y       = settings->gfx.tilemap_height; 
+    _nb.cache.level_resolution.x       = settings->gfx.level_width;
+    _nb.cache.level_resolution.y       = settings->gfx.level_height; 
 
 
     //allocate buffers for palette, atlases sprites,, etc...
@@ -150,9 +150,9 @@ void _load_cache(nb_settings * settings)
                                     * _nb.cache.tile_atlas_resolution.x 
                                     * _nb.cache.tile_atlas_resolution.y;
 
-    _nb.cache.tilemap_block_size   = sizeof(byte) 
-                                    * _nb.cache.tilemap_resolution.x 
-                                    * _nb.cache.tilemap_resolution.y;
+    _nb.cache.level_block_size   = sizeof(byte) 
+                                    * _nb.cache.level_resolution.x 
+                                    * _nb.cache.level_resolution.y;
 
 }
 
@@ -165,7 +165,7 @@ void _load_ram()
     _nb.ram.sprite_palette_colors  = nb_malloc(_nb.cache.palette_block_size      );
     _nb.ram.sprite_atlas_indices   = nb_malloc(_nb.cache.sprite_atlas_block_size );
     _nb.ram.tile_atlas_indices     = nb_malloc(_nb.cache.tile_atlas_block_size   );
-    _nb.ram.tilemap_indices          = nb_malloc(_nb.cache.tilemap_block_size   );
+    _nb.ram.level_indices          = nb_malloc(_nb.cache.level_block_size   );
 
 
     memset(_nb.ram.sprite_table,          0, _nb.cache.sprite_table_block_size  );
@@ -173,7 +173,7 @@ void _load_ram()
     memset(_nb.ram.sprite_palette_colors, 0, _nb.cache.palette_block_size       );
     memset(_nb.ram.sprite_atlas_indices,  0, _nb.cache.sprite_atlas_block_size  );
     memset(_nb.ram.tile_atlas_indices,    0, _nb.cache.tile_atlas_block_size    );
-    memset(_nb.ram.tilemap_indices,         0, _nb.cache.tilemap_block_size    );
+    memset(_nb.ram.level_indices,         0, _nb.cache.level_block_size    );
 
 }
 
@@ -204,15 +204,15 @@ void _load_gfx()
         _nb.cache.tile_atlas_resolution.x , 
         _nb.cache.tile_atlas_resolution.y );
 
-    nb_init_tilemap(
-        &_nb.gfx.tilemap,
+    nb_init_level(
+        &_nb.gfx.level,
         &_nb.gfx.shaders[NB_TILE_SHADER], 
-        _nb.ram.tilemap_indices, 
+        _nb.ram.level_indices, 
  
         _nb.cache.tile_resolution.x , 
         _nb.cache.tile_resolution.y ,
-        _nb.cache.tilemap_resolution.x , 
-        _nb.cache.tilemap_resolution.y );
+        _nb.cache.level_resolution.x , 
+        _nb.cache.level_resolution.y );
 }
 #define DUMP_INT(cache_var)     printf(#cache_var": %d\n", _nb.cache.cache_var)
 #define DUMP_VEC2(cache_vec2)   printf(#cache_vec2": %d %d\n", _nb.cache.cache_vec2.x,_nb.cache. cache_vec2.y)
@@ -223,8 +223,8 @@ void _dump_cache()
         DUMP_VEC2(sprite_resolution           );
         DUMP_VEC2(screen_resolution           );
         DUMP_VEC2(sprite_atlas_resolution     );
-        DUMP_VEC2(tile_atlas_resolution       );    //numbe of tiles along tilemap edge
-        DUMP_VEC2(tilemap_resolution            );         //numbe of tiles along tilemap edge
+        DUMP_VEC2(tile_atlas_resolution       );    //numbe of tiles along level edge
+        DUMP_VEC2(level_resolution            );         //numbe of tiles along level edge
         DUMP_VEC2(tile_resolution             );          //number of pixels along tile edge
         DUMP_INT (sprite_table_size           ); 
         DUMP_INT (palette_size                );            //dwisth of palette in colors
@@ -234,7 +234,7 @@ void _dump_cache()
         DUMP_INT (palette_block_size          );
         DUMP_INT (sprite_atlas_block_size     );
         DUMP_INT (tile_atlas_block_size       );
-        DUMP_INT (tilemap_block_size            );
+        DUMP_INT (level_block_size            );
 
     printf("\n------------------------------------------------------\n");
 
@@ -266,7 +266,7 @@ void        nb_startup(nb_settings * settings)
     
     //  ---------------------- Compile Shaders -------------------
     _load_shader(&_nb.gfx.shaders[NB_SPRITE_SHADER], "res/sprite.vert","res/sprite.frag");
-    _load_shader(&_nb.gfx.shaders[NB_TILE_SHADER], "res/tilemap.vert","res/tilemap.frag");
+    _load_shader(&_nb.gfx.shaders[NB_TILE_SHADER], "res/level.vert","res/level.frag");
 
     _load_gfx();   
 }
@@ -321,13 +321,13 @@ nb_status   nb_draw(u32 flags)
 
     if( nb_test(flags, NB_FLAG_TILE_ATLAS_DIRTY))
     {
-        nb_update_tilemap(&_nb.gfx.tilemap);
+        nb_update_level(&_nb.gfx.level);
     }
 
-    //  ---------------------------- draw tilemap -------------------
+    //  ---------------------------- draw level -------------------
     _bind_shader(NB_TILE_SHADER, 1);
 
-    nb_render_tilemap(&_nb.gfx.tilemap);   
+    nb_render_level(&_nb.gfx.level);   
     /////////////////////////////////
     _bind_shader(NB_SPRITE_SHADER , 1);
       //---------------------- draw sprites --------------------------------
@@ -378,10 +378,10 @@ void        nb_shutdown()
         _nb.ram.tile_atlas_indices = 0;
     } 
 
-    if( _nb.ram.tilemap_indices)
+    if( _nb.ram.level_indices)
     {
-        nb_free(_nb.ram.tilemap_indices);
-        _nb.ram.tilemap_indices = 0;
+        nb_free(_nb.ram.level_indices);
+        _nb.ram.level_indices = 0;
     } 
 
     // ------------------------------ destroy gfx module ------------------
@@ -402,7 +402,7 @@ void        nb_shutdown()
 
 void      nb_scroll(u32 dx, u32 dy)
 {
-        nb_scroll_tilemap(&_nb.gfx.tilemap, dx, dy);
+        nb_scroll_level(&_nb.gfx.level, dx, dy);
 }
 
 
@@ -453,15 +453,15 @@ byte *        nb_get_tile_atlas()
     return  _nb.ram.sprite_atlas_indices;
 }
 
-void        nb_set_tilemap(byte * tilemap_indices)
+void        nb_set_level(byte * level_indices)
 {
-    memcpy(_nb.ram.tilemap_indices, tilemap_indices,  _nb.cache.tilemap_block_size);
-    nb_update_tilemap(&_nb.gfx.tilemap);
+    memcpy(_nb.ram.level_indices, level_indices,  _nb.cache.level_block_size);
+    nb_update_level(&_nb.gfx.level);
 }
 
-byte *        nb_get_tilemap_data()
+byte *        nb_get_level_data()
 {
-    return  _nb.ram.tilemap_indices;
+    return  _nb.ram.level_indices;
 }
 
 
